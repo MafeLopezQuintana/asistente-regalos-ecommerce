@@ -1,16 +1,24 @@
 ![Recomendador de regalos: ¿Qué le regalo?](portada-regalos.png)
-# henry-pf-ecommerce
-Proyecto Final de Data Science Henry | Sistema de recomendación para e-commerce.
+
 # Asistente de regalos para e-commerce
 Proyecto Final Henry · Presente Analytics
 
 Asistente que, a partir de un cuestionario de 5 preguntas, sugiere regalos individuales y combos dentro del presupuesto, usando modelos de recomendación entrenados con compras reales (Online Retail II).
 
-## Equipo
-Franco (Product Owner), Mafe (Scrum Master), Cristian, Ezequiel y Mauricio.
+## Equipo y roles
+
+Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentación del PF: todos programamos y aportamos por igual a todo el proyecto.
+
+| Integrante | Rol formal | Aporte adicional | Frente técnico |
+|---|---|---|---|
+| Franco | Product Owner | Visualización y dashboards | Modelado |
+| Mafe | Scrum Master | Visualización y dashboards | Demo en Streamlit y README |
+| Cristian | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI |
+| Ezequiel | Liderazgo técnico (Data Team) | Documentación y Git | Modelado |
+| Mauricio | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos |
 
 ## Cómo correr el proyecto
-(Mafe: versión de Python, instalación de requirements.txt, cómo abrir la demo)
+( versión de Python, instalación de requirements.txt, cómo abrir la demo)
 
 ## 1. Calidad de datos (Mauricio)
 Qué limpieza se hizo, qué archivos se generan (Parquet), para qué sirve cada uno y cómo cargarlo.
