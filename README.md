@@ -20,7 +20,7 @@ Proyecto Final de Data Science Henry | Sistema de recomendación para e-commerce
 - **Dos datasets de salida**, no uno: `online_retail_rfm.parquet` (766.521 filas, exige cliente — para RFM y segmentación) y `online_retail_modelo.parquet` (993.249 filas, conserva ventas sin cliente — el modelo de recomendación no necesita saber quién compró, y descartarlas le escondía el 12,4% del catálogo de productos).
 - **Formato Parquet, no CSV**: CSV pierde los tipos de dato al releerse (`invoice_date` vuelve a ser texto, `customer_id` se corrompe a `13085.0`). Parquet los conserva.
 - **Segmentación mayorista/minorista**: percentil 95 de unidades totales compradas por cliente.
-- **Facturas "bulk" (posible reposición al por mayor)**: 80%+ de líneas en múltiplos de 6 y mínimo 5 productos distintos (7,1% de las facturas) — marcadas con una columna, no eliminadas del dataset general, solo excluidas al entrenar el modelo de recomendación.
+**Facturas "bulk" (posible reposición al por mayor):** marcadas con una columna (`factura_bulk`), no eliminadas del dataset general. La decisión de excluirlas o no del modelo de recomendación se evalúa en Modelado, comparando métricas con y sin ellas.
 
 **Código:** `src/data/clean.py` · **Tests:** `tests/test_clean.py` (10/10 pasando) · **Detalle completo:** `notebooks/01_calidad_datos.ipynb`
 
