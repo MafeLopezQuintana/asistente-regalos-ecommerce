@@ -8,7 +8,8 @@ RENAME = {
     'Price': 'unit_price', 'UnitPrice': 'unit_price', 'Customer ID': 'customer_id',
     'CustomerID': 'customer_id', 'Country': 'country'
 }
-CODIGOS_NO_PRODUCTO = ['POST', 'DOT', 'M', 'BANK CHARGES', 'AMAZONFEE', 'B', 'CRUK']
+CODIGOS_NO_PRODUCTO = ['POST', 'DOT', 'M', 'BANK CHARGES', 'AMAZONFEE', 'B', 'CRUK',
+                       'ADJUST', 'ADJUST2', 'D', 'C2', '23444', '23574', 'S']
 PERCENTIL_MAYORISTA = 0.95
 MULTIPLO_BULK = 6
 MIN_PRODUCTOS_BULK = 5
