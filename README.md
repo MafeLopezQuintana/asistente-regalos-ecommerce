@@ -23,3 +23,16 @@ Proyecto Final de Data Science Henry | Sistema de recomendación para e-commerce
 - **Facturas "bulk" (posible reposición al por mayor)**: 80%+ de líneas en múltiplos de 6 y mínimo 5 productos distintos (7,1% de las facturas) — marcadas con una columna, no eliminadas del dataset general, solo excluidas al entrenar el modelo de recomendación.
 
 **Código:** `src/data/clean.py` · **Tests:** `tests/test_clean.py` (10/10 pasando) · **Detalle completo:** `notebooks/01_calidad_datos.ipynb`
+
+## Categorías de producto
+
+Se generan 29 categorías desde `description` (TF-IDF + K-Means), 
+validadas con 4 métodos (Elbow, Silhouette, Gap Statistic, 
+Tibshirani) que confirmaron el límite real de separación por texto.
+El 29,8% del catálogo sin vocabulario distintivo queda bajo 
+"Variedad / Sorpresa" — una categoría de negocio válida, no un error.
+
+**Código:** `src/features/build_features.py` · **Tests:** 
+`tests/test_build_features.py` (7/7 pasando) · **Detalle:** 
+`notebooks/02b_categorias.ipynb` · **Salida:** 
+`data/processed/catalogo_categorizado.parquet` (29 categorías, no se sube al repo)
