@@ -8,7 +8,7 @@ from src.data.clean import limpiar_datos, segmentar_clientes, marcar_facturas_bu
 def fila(**kw):
     """Arma una fila de ejemplo válida, con overrides puntuales por test."""
     base = dict(invoice_no='500001', stock_code='85123A', description='HEART HOLDER',
-                quantity=2, invoice_date='2010-01-05 10:00:00', unit_price=2.5,
+                quantity=2, invoice_date=pd.to_datetime('2010-01-05 10:00:00'), unit_price=2.5,
                 customer_id=12345, country='United Kingdom')
     base.update(kw)
     return base
