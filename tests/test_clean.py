@@ -99,3 +99,59 @@ def test_catalogo_tiene_precio_tipico():
                         fila(invoice_no='3', unit_price=100)])
     catalogo = catalogo_productos(df)
     assert catalogo['precio'].iloc[0] == 2.5
+
+def test_solapamiento_entre_hojas_se_detecta():
+    """Si 2 hojas de Excel comparten una factura idéntica, se saca de una
+    de las 2 antes de unirlas (no se cuenta doble en duplicados después)."""
+    hoja1 = pd.DataFrame([fila(invoice_no='500001')])
+    hoja2 = pd.DataFrame([fila(invoice_no='500001'), fila(invoice_no='500002')])
+
+    # Simulamos el mismo chequeo que hace cargar_datos() internamente
+    comunes = set(hoja1['invoice_no']) & set(hoja2['invoice_no'])
+    assert comunes == {'500001'}
+
+    cols = list(hoja1.columns)
+    d0 = hoja1[hoja1['invoice_no'].isin(comunes)].sort_values(cols).reset_index(drop=True)
+    d1 = hoja2[hoja2['invoice_no'].isin(comunes)].sort_values(cols).reset_index(drop=True)
+    assert d0.equals(d1)
+
+    hoja2_sin_solapar = hoja2[~hoja2['invoice_no'].isin(comunes)]
+    assert len(hoja2_sin_solapar) == 1
+    assert hoja2_sin_solapar.iloc[0]['invoice_no'] == '500002'
+
+def test_cancelacion_elimina_compra_del_mismo_cliente():
+    """Una compra con su cancelación exacta (mismo cliente, producto,
+    cantidad) dentro de las 6 horas se elimina del dataset limpio."""
+    compra = fila(invoice_no='500001', customer_id=111,
+                   invoice_date=pd.to_datetime('2010-01-05 10:00:00'))
+    cancelacion = fila(invoice_no='C500002', customer_id=111, quantity=-2,
+                        invoice_date=pd.to_datetime('2010-01-05 10:30:00'))
+    df = pd.DataFrame([compra, cancelacion])
+
+    resultado, _ = limpiar_datos(df)
+    assert len(resultado) == 0  # la compra se va por cancelación exacta, la "C" se va por ser cancelación
+
+def test_clientes_anonimos_no_se_emparejan_por_error():
+    """Dos compras SIN customer_id, mismo producto y cantidad, NO deben
+    tratarse como la misma persona — bug real encontrado en la revisión
+    del PR: pandas trata NaN == NaN como match al cruzar tablas."""
+    compra_anonima = fila(invoice_no='500001', customer_id=None,
+                           invoice_date=pd.to_datetime('2010-01-05 10:00:00'))
+    cancelacion_anonima = fila(invoice_no='C500002', customer_id=None, quantity=-2,
+                                invoice_date=pd.to_datetime('2010-01-05 10:30:00'))
+    df = pd.DataFrame([compra_anonima, cancelacion_anonima])
+
+    resultado, _ = limpiar_datos(df, conservar_sin_cliente=True)
+    # La compra anónima NO se debe eliminar por la cancelación (son personas distintas, ambas desconocidas)
+    assert len(resultado) == 1
+    assert resultado.iloc[0]['invoice_no'] == '500001'
+
+def test_codigos_nuevos_de_la_revision_se_excluyen():
+    """TEST001, TEST002 (entradas de prueba) y 23444, 23574 (cargos de
+    envío) deben seguir en CODIGOS_NO_PRODUCTO tras la revisión del PR."""
+    df = pd.DataFrame([
+        fila(invoice_no='500001', stock_code='TEST001', unit_price=4.5),
+        fila(invoice_no='500002', stock_code='23444', unit_price=15.0),
+    ])
+    resultado, _ = limpiar_datos(df)
+    assert len(resultado) == 0

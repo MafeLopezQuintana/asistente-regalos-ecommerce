@@ -38,6 +38,9 @@ def cargar_datos(path) -> pd.DataFrame:
                 d1 = hojas[1][hojas[1]['invoice_no'].isin(comunes)].sort_values(cols).reset_index(drop=True)
                 if d0.equals(d1):
                     hojas[1] = hojas[1][~hojas[1]['invoice_no'].isin(comunes)]
+                else:
+                    print(f"{len(comunes)} facturas se solapan entre hojas pero NO son copias "
+                          f"idénticas — no se sacó ninguna, revisar a mano.")
         return pd.concat(hojas, ignore_index=True)
     elif path.suffix == '.csv':
         return pd.read_csv(path).rename(columns=RENAME)
