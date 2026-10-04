@@ -4,9 +4,11 @@
 Receta validada en notebooks/02b_categorias.ipynb: TF-IDF (unigramas) +
 K-Means(15) sobre el catálogo completo separa la mayoría de los productos
 en grupos con tema reconocible. El grupo más grande no tiene vocabulario
-distintivo (confirmado con 4 métodos: Elbow, Silhouette, Gap Statistic,
-Tibshirani) — se vuelve a vectorizar con bigramas + K-Means(15) para
-rescatar sub-temas, y lo que sigue sin tema se etiqueta "Variedad / Sorpresa".
+distintivo (ni Elbow ni Silhouette marcan un K óptimo claro) — se vuelve
+a vectorizar con bigramas + K-Means(15) para rescatar sub-temas (aunque
+el Silhouette no mejora con bigramas, los sub-temas resultantes sí son
+reconocibles con productos reales), y lo que sigue sin tema se etiqueta
+"Variedad / Sorpresa".
 """
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans

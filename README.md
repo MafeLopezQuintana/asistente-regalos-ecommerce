@@ -28,11 +28,18 @@ Proyecto Final de Data Science Henry | Sistema de recomendación para e-commerce
 
 ## Categorías de producto
 
-Se generan 29 categorías desde `description` (TF-IDF + K-Means), 
-validadas con 4 métodos (Elbow, Silhouette, Gap Statistic, 
-Tibshirani) que confirmaron el límite real de separación por texto.
-El 29,8% del catálogo sin vocabulario distintivo queda bajo 
-"Variedad / Sorpresa" — una categoría de negocio válida, no un error.
+Se generan 28 categorías desde `description` (TF-IDF + K-Means), con 
+cada decisión (K, bigramas) comparada en vivo contra alternativas 
+antes de elegirse — no hay un K matemáticamente óptimo (Elbow y 
+Silhouette no marcan un punto de corte claro), se elige por 
+practicidad de formulario. El 26,6% del catálogo sin vocabulario 
+distintivo queda bajo "Variedad / Sorpresa" — una categoría de 
+negocio válida, no un error.
+
+**Código:** `src/features/build_features.py` · **Tests:** 
+`tests/test_build_features.py` (7/7 pasando) · **Detalle:** 
+`notebooks/02b_categorias.ipynb` · **Salida:** 
+`data/processed/catalogo_categorizado.parquet` (28 categorías, no se sube al repo)
 
 **Código:** `src/features/build_features.py` · **Tests:** 
 `tests/test_build_features.py` (7/7 pasando) · **Detalle:** 
