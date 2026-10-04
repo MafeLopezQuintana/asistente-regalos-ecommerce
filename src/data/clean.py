@@ -9,7 +9,8 @@ RENAME = {
     'CustomerID': 'customer_id', 'Country': 'country'
 }
 CODIGOS_NO_PRODUCTO = ['POST', 'DOT', 'M', 'BANK CHARGES', 'AMAZONFEE', 'B', 'CRUK',
-                       'ADJUST', 'ADJUST2', 'D', 'C2', '23444', '23574', 'S']
+                       'ADJUST', 'ADJUST2', 'D', 'C2', '23444', '23574', 'S',
+                       'TEST001', 'TEST002']
 PERCENTIL_MAYORISTA = 0.95
 MULTIPLO_BULK = 6
 MIN_PRODUCTOS_BULK = 5
@@ -83,11 +84,15 @@ def limpiar_datos(df: pd.DataFrame, conservar_sin_cliente: bool = False, ventana
 
     # Compras que en realidad nunca se concretaron: tienen su cancelación
     # exacta (mismo cliente, producto, cantidad) pocas horas después.
-    cancelaciones = df[df['invoice_no'].str.startswith('C').fillna(False)][
+    # Se excluyen las filas sin customer_id: pandas trata NaN == NaN como
+    # un match al cruzar tablas, lo que emparejaría compras y cancelaciones
+    # de clientes anónimos DISTINTOS solo por compartir producto y cantidad.
+    con_cliente = df['customer_id'].notna()
+    cancelaciones = df[df['invoice_no'].str.startswith('C').fillna(False) & con_cliente][
         ['customer_id', 'stock_code', 'quantity', 'invoice_date']
     ].copy()
     cancelaciones['quantity'] = cancelaciones['quantity'].abs()
-    compras = df[~df['invoice_no'].str.startswith('C').fillna(False)].copy()
+    compras = df[~df['invoice_no'].str.startswith('C').fillna(False) & con_cliente].copy()
     compras['_idx_original'] = compras.index
     match = compras.merge(cancelaciones, on=['customer_id', 'stock_code', 'quantity'], suffixes=('', '_cancelacion'))
     match['horas'] = (match['invoice_date_cancelacion'] - match['invoice_date']).dt.total_seconds() / 3600
