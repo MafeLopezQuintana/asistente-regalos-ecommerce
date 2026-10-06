@@ -13,6 +13,7 @@ reconocibles con productos reales), y lo que sigue sin tema se etiqueta
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 import pandas as pd
+import pickle
 
 TOKEN_PATTERN = r'\b[a-zA-Z]{2,}\b'  # sin dígitos sueltos (ej. "SET OF 12")
 K_PRINCIPAL = 15
@@ -31,6 +32,11 @@ def clusterizar_productos(productos: pd.DataFrame):
     """Agrupa productos por descripción. Devuelve el catálogo con 'cluster'
     (0-14) y, solo para el cluster más grande (el genérico, sin vocabulario
     distintivo), un 'sub_cluster' (0-14) adicional vía bigramas.
+
+    Devuelve también los modelos ya entrenados (vectorizer, matriz,
+    vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico)
+    para poder guardarlos con guardar_modelos() y reusarlos después sobre
+    productos nuevos sin tener que re-entrenar todo el catálogo de nuevo.
     """
     vectorizer = TfidfVectorizer(stop_words='english', min_df=2, token_pattern=TOKEN_PATTERN)
     matriz = vectorizer.fit_transform(productos['description'])
@@ -51,11 +57,12 @@ def clusterizar_productos(productos: pd.DataFrame):
     modelo_sub = KMeans(n_clusters=K_SUBCLUSTER, random_state=42, n_init=10)
     productos.loc[mask, 'sub_cluster'] = modelo_sub.fit_predict(matriz_bi)
 
-    return productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask
+    return productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico
 
 
 def top_palabras_por_cluster(productos, vectorizer, matriz, n=8):
     """Una fila por cluster principal, con sus palabras top — para nombrarlos."""
+    productos = productos.reset_index(drop=True)
     filas = []
     for c in sorted(productos['cluster'].unique()):
         indices = productos.index[productos['cluster'] == c]
@@ -86,3 +93,97 @@ def asignar_categorias(productos, nombres_cluster: dict, nombres_subcluster: dic
     productos.loc[tiene_sub, 'categoria'] = productos.loc[tiene_sub, 'sub_cluster'].map(nombres_subcluster).astype(object)
     productos['categoria'] = productos['categoria'].fillna(categoria_generica)
     return productos
+
+def guardar_modelos(path, vectorizer, modelo, vectorizer_bi, modelo_sub,
+                     cluster_generico, nombres_cluster, nombres_subcluster):
+    """Guarda todo lo necesario para categorizar productos nuevos sin
+    re-entrenar: los 2 vectorizers, los 2 modelos de K-Means, el número
+    del cluster genérico, y los 2 diccionarios de nombres ya elegidos.
+    """
+    paquete = {
+        'vectorizer': vectorizer,
+        'modelo': modelo,
+        'vectorizer_bi': vectorizer_bi,
+        'modelo_sub': modelo_sub,
+        'cluster_generico': cluster_generico,
+        'nombres_cluster': nombres_cluster,
+        'nombres_subcluster': nombres_subcluster,
+    }
+    with open(path, 'wb') as f:
+        pickle.dump(paquete, f)
+
+def cargar_modelos(path):
+    """Carga lo que guardó guardar_modelos(). Devuelve el mismo diccionario
+    con las 7 piezas (vectorizer, modelo, vectorizer_bi, modelo_sub,
+    cluster_generico, nombres_cluster, nombres_subcluster).
+    """
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+def categorizar_productos_nuevos(productos_nuevos: pd.DataFrame, paquete: dict):
+    """Categoriza productos que NO existían al entrenar, sin re-entrenar
+    nada — usa los modelos ya guardados (ver guardar_modelos/cargar_modelos).
+    Por eso el número de cada cluster no se mueve: siempre son los mismos
+    vectorizer y modelos, solo se les aplica .transform()/.predict().
+    """
+    productos_nuevos = productos_nuevos.copy()
+
+    matriz_nueva = paquete['vectorizer'].transform(productos_nuevos['description'])
+    productos_nuevos['cluster'] = paquete['modelo'].predict(matriz_nueva)
+
+    mask = productos_nuevos['cluster'] == paquete['cluster_generico']
+    productos_nuevos['sub_cluster'] = pd.NA
+    if mask.any():
+        matriz_bi_nueva = paquete['vectorizer_bi'].transform(productos_nuevos.loc[mask, 'description'])
+        productos_nuevos.loc[mask, 'sub_cluster'] = paquete['modelo_sub'].predict(matriz_bi_nueva)
+
+    return asignar_categorias(productos_nuevos, paquete['nombres_cluster'], paquete['nombres_subcluster'])
+
+if __name__ == '__main__':
+    from src.data.clean import catalogo_productos
+
+    df_modelo = pd.read_parquet('data/processed/online_retail_modelo.parquet')
+    productos = catalogo_productos(df_modelo)
+
+    productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico = clusterizar_productos(productos)
+
+    nombres_cluster = {
+        0: 'Llaveros bling y con letra',
+        1: 'Estampado retrospot y lunares',
+        2: 'Decoración de árbol navideño',
+        3: 'Iluminación y portavelas colgantes',
+        5: 'Corazones decorativos',
+        6: 'Collares y joyería de vidrio',
+        7: 'Dijes y charms (bolso y celular)',
+        8: 'Diseños y accesorios variados',
+        9: 'Sets y combos (papelería, luces, velas)',
+        10: 'Espejos y botellas de agua caliente',
+        11: 'Incienso y aromáticos',
+        12: 'Velas aromáticas',
+        13: 'Bolsas de regalo y contenedores chicos',
+        14: 'Cuadernos y cajas vintage',
+    }
+    nombres_subcluster = {
+        0: 'Bandejas y velas de mesa retro',
+        1: 'Arte de pared y relojes',
+        2: 'Rosas decorativas (inglesa, danesa, clásica)',
+        3: 'Cajas y trinket boxes decorativas',
+        4: 'Tarjetas de saludo y cumpleaños',
+        5: 'Repostería y stands de torta',
+        6: 'Vajilla esmaltada estilo sweetheart',
+        7: 'Fundas y cobertores de cojín',
+        8: 'Tazas de café y flores',
+        9: 'Joyería de vidrio y aretes',
+        10: 'Carteles metálicos con frases',
+        11: 'Decoración colgante y de Pascua',
+        12: 'Marcos de fotos',
+    }
+
+    productos_final = asignar_categorias(productos, nombres_cluster, nombres_subcluster)
+    productos_final.to_parquet('data/processed/catalogo_categorizado.parquet', index=False)
+
+    guardar_modelos('data/processed/modelos_categorias.pkl', vectorizer, modelo, vectorizer_bi, modelo_sub,
+                     cluster_generico, nombres_cluster, nombres_subcluster)
+
+    print(f"Guardado: {len(productos_final)} productos, {productos_final['categoria'].nunique()} categorías")
+    print("Modelos congelados guardados en data/processed/modelos_categorias.pkl")

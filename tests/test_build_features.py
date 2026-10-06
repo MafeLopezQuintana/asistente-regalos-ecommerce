@@ -27,7 +27,7 @@ def test_clusteriza_sin_romper_con_pocos_productos(monkeypatch):
     monkeypatch.setattr(bf, 'K_PRINCIPAL', 2)
     monkeypatch.setattr(bf, 'K_SUBCLUSTER', 2)
 
-    productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask = bf.clusterizar_productos(catalogo_chico())
+    productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico = bf.clusterizar_productos(catalogo_chico())
 
     assert 'cluster' in productos.columns
     assert productos['cluster'].nunique() <= 2
@@ -89,3 +89,30 @@ def test_sub_cluster_sin_nombre_tambien_cae_en_generica():
     productos = pd.DataFrame({'cluster': [4], 'sub_cluster': [5.0]})
     resultado = asignar_categorias(productos, {}, {2: 'Velas aromáticas'})
     assert resultado['categoria'].iloc[0] == 'Variedad / Sorpresa'
+
+def test_re_entrenar_y_categorizar_productos_nuevos_no_rompe(tmp_path, monkeypatch):
+    """Simula el ciclo completo: entrenar de cero, guardar, y usar eso para
+    categorizar un producto que no existía al entrenar — ninguna de las
+    2 funciones debe romperse, y categorizar_productos_nuevos no debe
+    re-entrenar nada (nombres y categoria_generica se le pasan de afuera,
+    no se recalculan)."""
+    import src.features.build_features as bf
+    monkeypatch.setattr(bf, 'K_PRINCIPAL', 2)
+    monkeypatch.setattr(bf, 'K_SUBCLUSTER', 2)
+
+    productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico = bf.clusterizar_productos(catalogo_chico())
+
+    nombres_cluster = {c: f'Categoria {c}' for c in productos['cluster'].unique()}
+    nombres_subcluster = {}
+
+    path = tmp_path / "modelos.pkl"
+    bf.guardar_modelos(path, vectorizer, modelo, vectorizer_bi, modelo_sub,
+                        cluster_generico, nombres_cluster, nombres_subcluster)
+
+    paquete = bf.cargar_modelos(path)
+
+    producto_nuevo = pd.DataFrame({'stock_code': ['99999'], 'description': ['NUEVO PRODUCTO DE PRUEBA']})
+    resultado = bf.categorizar_productos_nuevos(producto_nuevo, paquete)
+
+    assert 'categoria' in resultado.columns
+    assert len(resultado) == 1
