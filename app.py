@@ -324,15 +324,8 @@ st.write(
 st.caption("Vista previa: los intereses se validarán con el catálogo.")
 
 with st.form("cuestionario_regalos"):
-    destinatario = st.radio(
-        "1. ¿Para quién es ese regalo?",
-        ["Mujer", "Hombre", "Prefiero no indicar"],
-        index=2,
-        horizontal=True,
-    )
-
     intereses = st.multiselect(
-        "2. ¿Qué cosas le encantan?",
+        "1. ¿Qué cosas le encantan?",
         [
             "Cocina y repostería",
             "Decoración y hogar",
@@ -346,7 +339,7 @@ with st.form("cuestionario_regalos"):
     )
 
     ocasion = st.selectbox(
-        "3. ¿Qué ocasión queremos celebrar?",
+        "2. ¿Qué ocasión queremos celebrar?",
         [
             "Cumpleaños",
             "Aniversario",
@@ -357,7 +350,7 @@ with st.form("cuestionario_regalos"):
     )
 
     tipo_regalo = st.radio(
-        "4. ¿Cómo te gustaría sorprender?",
+        "3. ¿Cómo te gustaría sorprender?",
         [
             "Un solo regalo",
             "Un combo de regalos",
@@ -366,7 +359,7 @@ with st.form("cuestionario_regalos"):
     )
 
     producto_previo = st.radio(
-        "5. ¿Ya viste algo que podría gustarle?",
+        "4. ¿Ya viste algo que podría gustarle?",
         [
             "No, necesito ideas",
             "Sí, quiero elegir un producto del catálogo",
@@ -409,5 +402,41 @@ if enviado:
             "Todavía no se generan recomendaciones. "
             "El próximo paso es conectar el catálogo y el modelo."
         )
+        
+st.divider()
+st.subheader("🎁 Personalizá tu regalo")
 
+personalizar = st.checkbox("Quiero agregar una tarjeta")
+
+if personalizar:
+    destinatario = st.text_input(
+        "¿Para quién es?",
+        placeholder="Ejemplo: Sofi",
+        key="tarjeta_destinatario"
+    )
+
+    mensaje = st.text_area(
+        "¿Qué querés decirle?",
+        placeholder="Escribí tu dedicatoria...",
+        max_chars=300,
+        key="tarjeta_mensaje"
+    )
+
+    remitente = st.text_input(
+        "¿Quién lo envía?",
+        placeholder="Tu nombre o firma",
+        key="tarjeta_remitente"
+    )
+
+    st.markdown("### 💌 Vista previa")
+
+    if destinatario.strip():
+        st.write("Para:", destinatario)
+
+    if mensaje.strip():
+        st.text(mensaje)
+
+    if remitente.strip():
+        st.write("Con cariño,", remitente)
+        
 st.caption("Presente Analytics · Proyecto Final Henry")
