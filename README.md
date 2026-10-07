@@ -88,7 +88,18 @@ Pendiente de completar: por qué se eligió el modelo final y cómo se valida.
 
 ## 6. Demo en Streamlit (Mafe)
 
-Pendiente de completar: qué hace cada pantalla, cómo se usa y el link público.
+## 6. Demo en Streamlit (Mafe)
+
+Se desarrolló y desplegó una primera versión funcional de la interfaz del
+Asistente de Regalos en Streamlit.
+
+🎁 **Demo pública:** https://quele-regalo.streamlit.app
+
+Actualmente, la aplicación permite completar las preferencias del usuario,
+seleccionar un rango de presupuesto y visualizar la experiencia propuesta.
+
+La integración con el catálogo de productos y el modelo de recomendación
+se incorporará en la siguiente etapa del proyecto.
 
 ## 7. Pipeline reproducible y monitoreo (Mauricio)
 
