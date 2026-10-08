@@ -66,11 +66,15 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 **Código:** `src/features/build_features.py`
 
-**Tests:** `tests/test_build_features.py` (7/7 pasando, según la entrega de categorías).
+**Cómo generarlo:** `python -m src.features.build_features` (desde la raíz del repo) — no `python src/features/build_features.py` a secas, porque ese import relativo necesita que Python lo trate como parte del paquete `src`.
+
+**Tests:** `tests/test_build_features.py` (8/8 pasando, según la entrega de categorías).
 
 **Detalle:** `notebooks/02b_categorias.ipynb`
 
 **Salida:** `data/processed/catalogo_categorizado.parquet` (28 categorías, no se sube al repo).
+
+**Modelos congelados:** `data/processed/modelos_categorias.pkl` (no se sube al repo) — vectorizer y K-Means ya entrenados. Productos nuevos se categorizan con `categorizar_productos_nuevos()` sin re-entrenar todo el catálogo, evitando que el número de cada cluster se mueva.
 
 Pendiente de completar: relación entre las categorías del catálogo y los intereses del cuestionario.
 
