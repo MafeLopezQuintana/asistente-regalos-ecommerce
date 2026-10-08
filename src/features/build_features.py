@@ -182,7 +182,7 @@ if __name__ == '__main__':
     productos_final.to_parquet('data/processed/catalogo_categorizado.parquet', index=False)
 
     guardar_modelos('data/processed/modelos_categorias.pkl', vectorizer, modelo, vectorizer_bi, modelo_sub,
-                     cluster_generico, nombres_cluster, nombres_subcluster)
+                     cluster_generico, NOMBRES_CLUSTER, NOMBRES_SUBCLUSTER)
 
     print(f"Guardado: {len(productos_final)} productos, {productos_final['categoria'].nunique()} categorías")
     print("Modelos congelados guardados en data/processed/modelos_categorias.pkl")
