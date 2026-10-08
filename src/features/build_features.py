@@ -18,6 +18,37 @@ import pickle
 TOKEN_PATTERN = r'\b[a-zA-Z]{2,}\b'  # sin dígitos sueltos (ej. "SET OF 12")
 K_PRINCIPAL = 15
 K_SUBCLUSTER = 15
+NOMBRES_CLUSTER = {
+    0: 'Llaveros bling y con letra',
+    1: 'Estampado retrospot y lunares',
+    2: 'Decoración de árbol navideño',
+    3: 'Iluminación y portavelas colgantes',
+    5: 'Corazones decorativos',
+    6: 'Collares y joyería de vidrio',
+    7: 'Dijes y charms (bolso y celular)',
+    8: 'Diseños y accesorios variados',
+    9: 'Sets y combos (papelería, luces, velas)',
+    10: 'Espejos y botellas de agua caliente',
+    11: 'Incienso y aromáticos',
+    12: 'Velas aromáticas',
+    13: 'Bolsas de regalo y contenedores chicos',
+    14: 'Cuadernos y cajas vintage',
+}
+NOMBRES_SUBCLUSTER = {
+    0: 'Bandejas y velas de mesa retro',
+    1: 'Arte de pared y relojes',
+    2: 'Rosas decorativas (inglesa, danesa, clásica)',
+    3: 'Cajas y trinket boxes decorativas',
+    4: 'Tarjetas de saludo y cumpleaños',
+    5: 'Repostería y stands de torta',
+    6: 'Vajilla esmaltada estilo sweetheart',
+    7: 'Fundas y cobertores de cojín',
+    8: 'Tazas de café y flores',
+    9: 'Joyería de vidrio y aretes',
+    10: 'Carteles metálicos con frases',
+    11: 'Decoración colgante y de Pascua',
+    12: 'Marcos de fotos',
+}
 
 
 def _top_palabras(matriz, vectorizer, indices, n=8):
@@ -147,39 +178,7 @@ if __name__ == '__main__':
 
     productos, vectorizer, matriz, vectorizer_bi, matriz_bi, mask, modelo, modelo_sub, cluster_generico = clusterizar_productos(productos)
 
-    nombres_cluster = {
-        0: 'Llaveros bling y con letra',
-        1: 'Estampado retrospot y lunares',
-        2: 'Decoración de árbol navideño',
-        3: 'Iluminación y portavelas colgantes',
-        5: 'Corazones decorativos',
-        6: 'Collares y joyería de vidrio',
-        7: 'Dijes y charms (bolso y celular)',
-        8: 'Diseños y accesorios variados',
-        9: 'Sets y combos (papelería, luces, velas)',
-        10: 'Espejos y botellas de agua caliente',
-        11: 'Incienso y aromáticos',
-        12: 'Velas aromáticas',
-        13: 'Bolsas de regalo y contenedores chicos',
-        14: 'Cuadernos y cajas vintage',
-    }
-    nombres_subcluster = {
-        0: 'Bandejas y velas de mesa retro',
-        1: 'Arte de pared y relojes',
-        2: 'Rosas decorativas (inglesa, danesa, clásica)',
-        3: 'Cajas y trinket boxes decorativas',
-        4: 'Tarjetas de saludo y cumpleaños',
-        5: 'Repostería y stands de torta',
-        6: 'Vajilla esmaltada estilo sweetheart',
-        7: 'Fundas y cobertores de cojín',
-        8: 'Tazas de café y flores',
-        9: 'Joyería de vidrio y aretes',
-        10: 'Carteles metálicos con frases',
-        11: 'Decoración colgante y de Pascua',
-        12: 'Marcos de fotos',
-    }
-
-    productos_final = asignar_categorias(productos, nombres_cluster, nombres_subcluster)
+    productos_final = asignar_categorias(productos, NOMBRES_CLUSTER, NOMBRES_SUBCLUSTER)
     productos_final.to_parquet('data/processed/catalogo_categorizado.parquet', index=False)
 
     guardar_modelos('data/processed/modelos_categorias.pkl', vectorizer, modelo, vectorizer_bi, modelo_sub,

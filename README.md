@@ -66,6 +66,8 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 **Código:** `src/features/build_features.py`
 
+**Cómo generarlo:** `python -m src.features.build_features` (desde la raíz del repo) — no `python src/features/build_features.py` a secas, porque ese import relativo necesita que Python lo trate como parte del paquete `src`.
+
 **Tests:** `tests/test_build_features.py` (8/8 pasando, según la entrega de categorías).
 
 **Detalle:** `notebooks/02b_categorias.ipynb`
