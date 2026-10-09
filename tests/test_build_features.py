@@ -1,4 +1,6 @@
 # tests/test_build_features.py
+import sys
+sys.path.append('.')
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
