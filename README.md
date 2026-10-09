@@ -88,8 +88,6 @@ Pendiente de completar: por qué se eligió el modelo final y cómo se valida.
 
 ## 6. Demo en Streamlit (Mafe)
 
-## 6. Demo en Streamlit (Mafe)
-
 Se desarrolló y desplegó una primera versión funcional de la interfaz del
 Asistente de Regalos en Streamlit.
 
