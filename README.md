@@ -127,7 +127,93 @@ Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.40
 
 ## 4. Modelos (Ezequiel y Franco)
 
-Pendiente de completar: baseline, KNN item-item y SVD; métricas (Hit Rate@5, NDCG@5) y tabla comparativa.
+El sistema recomienda productos complementarios a partir de un producto elegido (**ancla**): aprende
+qué productos suelen aparecer juntos en una misma factura. Los modelos se entrenan con
+`data/processed/online_retail_modelo.parquet`, que conserva las ventas sin cliente porque para
+recomendar por co-compra no hace falta saber quién compró.
+
+### Modelos
+
+| Modelo | Archivo | Lógica |
+|---|---|---|
+| Popularidad (baseline) | `src/models/train.py` | Recomienda los productos que aparecen en más facturas, salvo el ancla |
+| Item-item (KNN entre productos) | `src/models/train.py` | Similitud coseno entre productos sobre la matriz binaria factura × producto: recomienda los que más se compran junto con el ancla |
+| SVD | `src/models/train.py` | Factorización de la misma matriz; recomienda por similitud entre los factores de cada producto |
+
+La matriz es **binaria** (el producto estuvo o no en la factura): la cantidad comprada no pesa,
+para que las compras mayoristas no distorsionen las relaciones entre productos.
+
+### Interfaz común
+
+Cualquier modelo nuevo se puede comparar con los demás si implementa:
+
+- `fit(df_train)`: entrena y devuelve el propio modelo.
+- `recomendar(anclas, k)`: devuelve `k` códigos de producto, nunca las anclas.
+- `get_params()`: diccionario con su configuración (se registra en MLflow).
+- `n_productos`: cantidad de productos que conoce (para la cobertura).
+
+### Cómo se evalúa
+
+1. **Corte temporal** (`corte_temporal`): el 80% más antiguo de las facturas es desarrollo y el 20%
+   más reciente es test. Ninguna factura queda partida.
+2. **Validación cruzada temporal** (`evaluar_cv_temporal`) dentro del desarrollo, con folds expansivos
+   (siempre se entrena con el pasado y se valida con el período siguiente), para elegir parámetros
+   sin mirar el test.
+3. Los modelos elegidos se **reentrenan con todo el desarrollo**.
+4. **Comparación final** (`comparar_modelos`) sobre el test, **una sola vez**.
+
+En cada factura de evaluación con 2 o más productos se esconde uno al azar (semilla fija) y se mide
+si el modelo lo recupera:
+
+- **Modo ancla (principal):** el modelo ve un solo producto de la factura, igual que en el asistente,
+  donde el usuario elige un producto de referencia. Con este modo se eligen los parámetros y el modelo.
+- **Modo carrito (referencia):** el modelo ve todos los demás productos de la factura. Es la formulación
+  de la propuesta y la base de `armar_combos` (Sprint 2); se reporta al lado, sin usarse para elegir.
+
+| Métrica | Qué mide |
+|---|---|
+| Hit Rate@5 (KPI principal) | Porcentaje de casos en que el producto escondido está entre las 5 recomendaciones |
+| NDCG@5 | Igual, pero premia que el acierto esté más arriba en la lista |
+| Cobertura de catálogo | Porcentaje de productos que el modelo llega a recomendar alguna vez |
+
+### MLflow
+
+Todas las corridas se registran con `registrar_corrida()` (`src/utils/mlflow_utils.py`), igual que
+el resto del equipo: un solo experimento, `asistente-regalos-ecommerce`, con la base `mlflow.db` y
+los artefactos en `mlartifacts/`, ambos en la raíz del repo (sin importar desde qué carpeta se
+ejecute). Las etapas se separan con el tag `etapa`:
+
+- `validacion`: una corrida por configuración probada (`evaluar_cv_temporal(..., registrar_mlflow=True)`),
+  con la media y el desvío entre folds. Es la justificación con números de cada parámetro elegido.
+- `test_final`: una corrida por modelo en la comparación final (`comparar_modelos`), con el modelo
+  entrenado guardado como artefacto, y una corrida de resumen con la tabla y el gráfico.
+
+Cada corrida lleva además el tag `familia` (popularidad, item_item, svd).
+Para verlas, desde la raíz: `mlflow ui --backend-store-uri sqlite:///mlflow.db` y filtrar, por
+ejemplo, con `tags.etapa = "validacion"`. `mlflow.db` y `mlartifacts/` no se suben al repo: las
+corridas se regeneran ejecutando el notebook.
+
+### Notebook
+
+`notebooks/04_modelos.ipynb` reúne todo el modelado: corte temporal, casos de prueba, los tres
+modelos, validación cruzada temporal de 11 configuraciones, reentrenamiento de las elegidas y
+comparación final sobre el test.
+
+**Tests:** `tests/test_modelos.py` (32 tests: corte y folds temporales, métricas, casos, matriz,
+los tres modelos, filtros de entrenamiento y el registro en MLflow con una base temporal). La CI los corre en cada PR; a mano,
+desde la raíz: `python -m pytest tests/ -v`.
+
+### Resultados (test, modo ancla)
+
+Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo vio al entrenar.
+
+| Modelo | Configuración | Hit Rate@5 | NDCG@5 | Cobertura | Hit Rate@5 carrito (ref.) |
+|---|---|---|---|---|---|
+| **Item-item** | min_facturas=5, tope 200 productos por factura | **8,4%** | **0,059** | **61,6%** | **19,9%** |
+| SVD | 50 componentes, tope 200 | 7,0% | 0,048 | 53,5% | 7,0% |
+| Popularidad (baseline) | criterio "facturas" | 1,8% | 0,011 | 0,1% | 2,3% |
+
+![Comparación final de modelos](reports/figures/04_comparacion_final.png)
 
 ## 5. Justificación del modelo y plan de validación (Franco)
 
