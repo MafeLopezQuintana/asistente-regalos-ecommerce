@@ -20,7 +20,29 @@ Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentaci
 
 ## Cómo correr el proyecto
 
-Pendiente de completar: versión de Python, instalación de requirements.txt, generación y carga de los archivos de datos y comando para abrir la demo.
+**Versión de Python:** 3.11 (la misma que usa la CI del repositorio, en `.github/workflows/ci.yml`).
+
+**Instalar dependencias:**
+
+```bash
+pip install -r requirements.txt
+```
+
+**Generar los datasets limpios** (el Excel original no se sube al repo — colocalo en `data/raw/online_retail_II.xlsx` antes de correr esto):
+
+```bash
+python -m src.data.clean
+```
+
+Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retail_modelo.parquet`.
+
+**Generar las categorías de producto:**
+
+```bash
+python -m src.features.build_features
+```
+
+Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
 
 ## 1. Calidad de datos (Mauricio)
 
