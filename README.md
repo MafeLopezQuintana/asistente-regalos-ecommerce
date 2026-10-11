@@ -127,11 +127,148 @@ Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.40
 
 ## 4. Modelos (Ezequiel y Franco)
 
-Pendiente de completar: baseline, KNN item-item y SVD; métricas (Hit Rate@5, NDCG@5) y tabla comparativa.
+El sistema recomienda productos complementarios a partir de un producto elegido (**ancla**): aprende
+qué productos suelen aparecer juntos en una misma factura. Los modelos se entrenan con
+`data/processed/online_retail_modelo.parquet`, que conserva las ventas sin cliente porque para
+recomendar por co-compra no hace falta saber quién compró.
+
+### Modelos
+
+| Modelo | Archivo | Lógica |
+|---|---|---|
+| Popularidad (baseline) | `src/models/train.py` | Recomienda los productos que aparecen en más facturas, salvo el ancla |
+| Item-item (KNN entre productos) | `src/models/train.py` | Similitud coseno entre productos sobre la matriz binaria factura × producto: recomienda los que más se compran junto con el ancla |
+| SVD | `src/models/train.py` | Factorización de la misma matriz; recomienda por similitud entre los factores de cada producto |
+
+La matriz es **binaria** (el producto estuvo o no en la factura): la cantidad comprada no pesa,
+para que las compras mayoristas no distorsionen las relaciones entre productos.
+
+### Interfaz común
+
+Cualquier modelo nuevo se puede comparar con los demás si implementa:
+
+- `fit(df_train)`: entrena y devuelve el propio modelo.
+- `recomendar(anclas, k)`: devuelve `k` códigos de producto, nunca las anclas.
+- `get_params()`: diccionario con su configuración (se registra en MLflow).
+- `n_productos`: cantidad de productos que conoce (para la cobertura).
+
+### Cómo se evalúa
+
+1. **Corte temporal** (`corte_temporal`): el 80% más antiguo de las facturas es desarrollo y el 20%
+   más reciente es test. Ninguna factura queda partida.
+2. **Validación cruzada temporal** (`evaluar_cv_temporal`) dentro del desarrollo, con folds expansivos
+   (siempre se entrena con el pasado y se valida con el período siguiente), para elegir parámetros
+   sin mirar el test.
+3. Los modelos elegidos se **reentrenan con todo el desarrollo**.
+4. **Comparación final** (`comparar_modelos`) sobre el test, **una sola vez**.
+
+En cada factura de evaluación con 2 o más productos se esconde uno al azar (semilla fija) y se mide
+si el modelo lo recupera:
+
+- **Modo ancla (principal):** el modelo ve un solo producto de la factura, igual que en el asistente,
+  donde el usuario elige un producto de referencia. Con este modo se eligen los parámetros y el modelo.
+- **Modo carrito (referencia):** el modelo ve todos los demás productos de la factura. Es la formulación
+  de la propuesta y la base de `armar_combos` (Sprint 2); se reporta al lado, sin usarse para elegir.
+
+| Métrica | Qué mide |
+|---|---|
+| Hit Rate@5 (KPI principal) | Porcentaje de casos en que el producto escondido está entre las 5 recomendaciones |
+| NDCG@5 | Igual, pero premia que el acierto esté más arriba en la lista |
+| Cobertura de catálogo | Porcentaje de productos que el modelo llega a recomendar alguna vez |
+
+### MLflow
+
+Todas las corridas se registran con `registrar_corrida()` (`src/utils/mlflow_utils.py`), igual que
+el resto del equipo: un solo experimento, `asistente-regalos-ecommerce`, con la base `mlflow.db` y
+los artefactos en `mlartifacts/`, ambos en la raíz del repo (sin importar desde qué carpeta se
+ejecute). Las etapas se separan con el tag `etapa`:
+
+- `validacion`: una corrida por configuración probada (`evaluar_cv_temporal(..., registrar_mlflow=True)`),
+  con la media y el desvío entre folds. Es la justificación con números de cada parámetro elegido.
+- `test_final`: una corrida por modelo en la comparación final (`comparar_modelos`), con el modelo
+  entrenado guardado como artefacto, y una corrida de resumen con la tabla y el gráfico.
+
+Cada corrida lleva además el tag `familia` (popularidad, item_item, svd).
+Para verlas, desde la raíz: `mlflow ui --backend-store-uri sqlite:///mlflow.db` y filtrar, por
+ejemplo, con `tags.etapa = "validacion"`. `mlflow.db` y `mlartifacts/` no se suben al repo: las
+corridas se regeneran ejecutando el notebook.
+
+### Notebook
+
+`notebooks/04_modelos.ipynb` reúne todo el modelado: corte temporal, casos de prueba, los tres
+modelos, validación cruzada temporal de 11 configuraciones, reentrenamiento de las elegidas y
+comparación final sobre el test.
+
+**Tests:** `tests/test_modelos.py` (32 tests: corte y folds temporales, métricas, casos, matriz,
+los tres modelos, filtros de entrenamiento y el registro en MLflow con una base temporal). La CI los corre en cada PR; a mano,
+desde la raíz: `python -m pytest tests/ -v`.
+
+### Resultados (test, modo ancla)
+
+Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo vio al entrenar.
+
+| Modelo | Configuración | Hit Rate@5 | NDCG@5 | Cobertura | Hit Rate@5 carrito (ref.) |
+|---|---|---|---|---|---|
+| **Item-item** | min_facturas=5, tope 200 productos por factura | **8,4%** | **0,059** | **61,6%** | **19,9%** |
+| SVD | 50 componentes, tope 200 | 7,0% | 0,048 | 53,5% | 7,0% |
+| Popularidad (baseline) | criterio "facturas" | 1,8% | 0,011 | 0,1% | 2,3% |
+
+![Comparación final de modelos](reports/figures/04_comparacion_final.png)
 
 ## 5. Justificación del modelo y plan de validación (Franco)
 
-Pendiente de completar: por qué se eligió el modelo final y cómo se valida.
+### Plan de validación
+
+1. **Test reservado desde el principio:** el 20% más reciente de las facturas (19/08/2011 al 09/12/2011)
+   se separa antes de cualquier prueba y se usa **una sola vez**, al final. Así la cifra que se reporta
+   no está influida por la elección de parámetros.
+2. **Validación cruzada temporal** sobre el 80% restante: 3 folds expansivos, siempre entrenando con el
+   pasado y validando con el período siguiente. Ahí se comparan 11 configuraciones y se eligen los
+   parámetros de cada modelo. El desvío entre folds se usa como referencia descriptiva de variabilidad, no como una
+   prueba de significancia estadística. El notebook selecciona automáticamente el mayor Hit Rate medio
+   de cada familia; permite ajustar manualmente la selección para priorizar simplicidad.
+3. **Reentrenamiento** de las configuraciones elegidas con todo el desarrollo y **comparación final**
+   sobre el test, con los mismos casos para los tres modelos.
+4. **Modo ancla como principal** (el modelo ve un producto, como en el asistente) y modo carrito como
+   referencia (ve todos los demás productos de la factura).
+5. Todas las corridas quedan en MLflow (`etapa = validacion` y `etapa = test_final`), con parámetros y métricas.
+
+### Por qué item-item
+
+Criterios, en este orden: Hit Rate@5 en test, NDCG@5 para desempatar, cobertura del catálogo y explicabilidad.
+
+1. **Hit Rate@5:** 8,4% en test, más de 4 veces el baseline (1,8%) y por encima del SVD (7,0%).
+   El orden es el mismo en la validación (9,4% / 7,7% / 3,2%), lo que respalda la elección en los períodos evaluados, sin garantizar el resultado en períodos futuros.
+2. **NDCG@5:** también el mejor (0,059): cuando acierta, el producto aparece más arriba.
+3. **Cobertura:** recomienda el 61,6% del catálogo conocido en desarrollo, contra el 53,5% del SVD y el 0,1% del baseline.
+4. **Explicabilidad:** se explica en una frase ("otros clientes lo compraron junto con este"), lo que
+   permite mostrarle al usuario por qué se le sugiere cada regalo.
+5. **Modo carrito:** con varios productos a la vista llega al 19,9%, casi el triple que el SVD. Es la
+   base de `armar_combos` (Sprint 2).
+
+**Parámetros elegidos** (validación cruzada, ver `notebooks/04_modelos.ipynb`):
+
+- `min_facturas = 5`: con 3, 5 y 10 el Hit Rate medio es similar (9,0%–9,1%); con 10 baja la cobertura.
+  La búsqueda de este umbral se hizo en item-item; en SVD se mantuvo el valor 5 por defecto.
+- Facturas bulk **no se excluyen**: excluirlas no cambia el Hit Rate y baja un poco la cobertura.
+- `max_productos_factura = 200`: se ignoran al construir la matriz de item-item y SVD las facturas de más de 200 productos distintos
+  (reposiciones de medio catálogo). La mejora es chica, pero se repite en el item-item y en el SVD y sube la cobertura.
+- SVD con 50 componentes: sin tope, 100 mejora levemente el Hit Rate medio (7,5% frente a
+  7,4%), con una diferencia menor que el desvío entre folds; con 20 baja a 6,7%. La configuración
+  elegida combina 50 componentes y tope 200 (7,7%). El SVD queda documentado como
+  alternativa: encuentra relaciones indirectas, pero no supera al item-item en las métricas de la comparación final.
+- Ambos modelos completan con popularidad cuando faltan recomendaciones; ese respaldo se entrena
+  con todo el desarrollo, sin aplicar el tope de 200 productos.
+
+**Limitaciones:** aprende de compras (feedback implícito), no de satisfacción; los datos son de 2009-2011;
+las métricas son offline y el efecto real sobre las ventas se mediría con un test A/B. Solo se
+evalúan facturas con al menos dos productos conocidos en desarrollo (7.190 casos de 7.881 facturas
+de test); estos resultados no miden la recomendación de productos nuevos. Los productos se identifican
+por `stock_code`; la descripción se usa para mostrarlos al usuario.
+
+El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de diciembre. Los tres modelos
+tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
+posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
 ## 6. Demo en Streamlit (Mafe)
 
