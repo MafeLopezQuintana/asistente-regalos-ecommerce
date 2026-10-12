@@ -12,11 +12,11 @@ Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentaci
 
 | Integrante | Rol formal | Aporte adicional | Frente técnico |
 | --- | --- | --- | --- |
-| Franco | Product Owner | Visualización y dashboards | Modelado |
-| Mafe | Scrum Master | Visualización y dashboards | Demo en Streamlit y README |
-| Cristian | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI |
-| Ezequiel | Liderazgo técnico (Data Team) | Documentación y Git | Modelado |
-| Mauricio | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos |
+| Franco Correa| Product Owner | Visualización y dashboards | Modelado |
+| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README |
+| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI |
+| Ezequiel Irianni| Liderazgo técnico (Data Team) | Documentación y Git | Modelado |
+| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos |
 
 ## Cómo correr el proyecto
 
