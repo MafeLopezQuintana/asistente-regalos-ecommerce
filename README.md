@@ -42,6 +42,18 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
+**Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+**Correr los tests:**
+
+```bash
+python -m pytest
+```
+
 Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
 
 ## 1. Calidad de datos (Mauricio)
@@ -76,7 +88,7 @@ Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
 
 **Detalle completo:** `notebooks/01_calidad_datos.ipynb`
 
-Pendiente de completar: instrucciones para generar y cargar los dos archivos Parquet. Los datasets no se suben al repositorio.
+Los dos archivos Parquet se generan con `python -m src.data.clean` (ver [Cómo correr el proyecto](#cómo-correr-el-proyecto)). Los datasets no se suben al repositorio.
 
 ## 2. Categorías e intereses (Mauricio)
 
@@ -276,7 +288,49 @@ Pendiente de completar: qué hace cada pantalla, cómo se usa y el link público
 
 ## 7. Pipeline reproducible y monitoreo (Mauricio)
 
-Pendiente de completar: GitHub Actions, MLflow y cómo se reevalúa el modelo.
+El proyecto se puede reproducir y revisar gracias a dos piezas: los tests corren solos en cada Pull Request (GitHub Actions) y todos los experimentos de modelado quedan registrados en un mismo lugar (MLflow).
+
+### 7.1 Integración continua (GitHub Actions)
+
+El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `main` y en cada push a `main`, sobre una máquina limpia de GitHub (Ubuntu):
+
+| Paso | Qué hace |
+|---|---|
+| Clonar el repo | Descarga el código de la rama del PR |
+| Configurar Python 3.11 | La misma versión indicada en "Cómo correr el proyecto" |
+| Instalar dependencias | `pip install -r requirements.txt` |
+| Correr los tests | `pytest tests/ -v` |
+
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 54 tests:
+
+| Archivo | Tests | Qué cubren |
+|---|---|---|
+| `tests/test_clean.py` | 14 | Filtros de limpieza, segmentación de clientes, facturas bulk, catálogo y cuatro bugs encontrados en la revisión (solapamiento entre hojas del Excel, cancelaciones, clientes anónimos, códigos no-producto) |
+| `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
+| `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
+
+Decisiones tomadas:
+
+- **`requirements.txt` con versiones fijas de las dependencias directas, no `pip freeze`.** El freeze incluía paquetes que solo existen en Windows (`pywin32`) o que piden otra versión de Python, y la CI fallaba en Ubuntu.
+- **`pytest.ini` con `pythonpath = .`**, para que `from src...` funcione igual en la CI que en cada máquina, sin modificar `sys.path` dentro de los tests.
+- **Los tests no usan el dataset real**, que no está en el repo: cada test arma un DataFrame chico con el caso que quiere probar.
+- **Los tests de MLflow escriben en una base temporal**, para no mezclarse con las corridas reales del equipo.
+
+### 7.2 Registro de experimentos (MLflow)
+
+`src/utils/mlflow_utils.py` tiene una sola función, `registrar_corrida()`, que usa todo el equipo para registrar parámetros, métricas y, opcionalmente, el modelo entrenado. Así todas las corridas quedan en el mismo experimento y se pueden comparar.
+
+- **Experimento:** `asistente-regalos-ecommerce`.
+- **Dónde se guarda:** `mlflow.db` (base SQLite) y `mlartifacts/`, en la raíz del repo sin importar desde qué carpeta se ejecute: la ruta se calcula a partir de la ubicación del archivo, así un notebook y un script escriben en la misma base.
+- **Modelos guardados con `joblib`:** nuestros modelos no son estimadores de scikit-learn, y así se puede guardar cualquier objeto.
+- **No se suben al repo** (están en `.gitignore`): las corridas se regeneran ejecutando el notebook.
+- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) y `monitoreo`, reservada para la reevaluación del modelo (7.3).
+
+Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://127.0.0.1:5000 y elegir la vista **Model training**.
+
+### 7.3 Monitoreo
+
+Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
 
 ## Limitaciones
 
