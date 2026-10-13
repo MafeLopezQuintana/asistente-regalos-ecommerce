@@ -6,17 +6,31 @@ Proyecto Final Henry · Presente Analytics
 
 Asistente que, a partir de un cuestionario de 5 preguntas, sugiere regalos individuales y combos dentro del presupuesto, usando modelos de recomendación entrenados con compras reales (Online Retail II).
 
+## Índice
+
+- [Equipo y roles](#equipo-y-roles)
+- [Cómo correr el proyecto](#cómo-correr-el-proyecto)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [1. Calidad de datos](#1-calidad-de-datos)
+- [2. Categorías e intereses](#2-categorías-e-intereses)
+- [3. EDA y visualizaciones](#3-eda-y-visualizaciones)
+- [4. Modelos](#4-modelos)
+- [5. Justificación del modelo y plan de validación](#5-justificación-del-modelo-y-plan-de-validación)
+- [6. Demo en Streamlit](#6-demo-en-streamlit)
+- [7. Pipeline reproducible y monitoreo](#7-pipeline-reproducible-y-monitoreo)
+- [Limitaciones](#limitaciones)
+
 ## Equipo y roles
 
 Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentación del PF: todos programamos y aportamos por igual a todo el proyecto.
 
-| Integrante | Rol formal | Aporte adicional | Frente técnico |
-| --- | --- | --- | --- |
-| Franco Correa| Product Owner | Visualización y dashboards | Modelado |
-| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README |
-| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI |
-| Ezequiel Irianni| Liderazgo técnico (Data Team) | Documentación y Git | Modelado |
-| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos |
+| Integrante | Rol formal | Aporte adicional | Frente técnico | LinkedIn |
+| --- | --- | --- | --- | --- |
+| Franco Correa | Product Owner | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
+| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
+| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
+| Ezequiel Irianni | Liderazgo técnico (Data Team) | Documentación y Git | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ezequielirianni/) |
+| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
 
 ## Cómo correr el proyecto
 
@@ -54,9 +68,60 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 python -m pytest
 ```
 
-Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
+**Abrir la demo en Streamlit** (local):
 
-## 1. Calidad de datos (Mauricio)
+```bash
+streamlit run app.py
+```
+
+La versión publicada está en https://quele-regalo.streamlit.app (ver [6. Demo en Streamlit](#6-demo-en-streamlit)).
+
+## Estructura del repositorio
+
+```
+asistente-regalos-ecommerce/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # CI: corre los tests en cada PR
+├── .streamlit/
+│   └── config.toml                 # Configuración visual de la demo
+├── assets/
+│   └── portada.png                 # Imagen de la demo
+├── data/                           # Local, no se sube (ver .gitignore)
+│   ├── raw/                        # online_retail_II.xlsx (original)
+│   └── processed/                  # Parquets limpios y catálogo
+├── models/                         # modelo_final.pkl (Sprint 2)
+├── notebooks/
+│   ├── img/                        # Gráficos del análisis de categorías
+│   ├── 01_calidad_datos.ipynb      # Limpieza y calidad de datos
+│   ├── 02b_categorias.ipynb        # Categorías de producto (TF-IDF + K-Means)
+│   ├── 03_eda.ipynb                # Análisis exploratorio
+│   └── 04_modelos.ipynb            # Modelos: validación y comparación final
+├── reports/
+│   ├── figures/                    # Gráficos del EDA (01, 02) y de modelos (04)
+│   └── comparacion_modelos.csv     # Tabla final de modelos
+├── src/
+│   ├── data/
+│   │   └── clean.py                # Limpieza → datasets en Parquet
+│   ├── features/
+│   │   └── build_features.py       # Categorías de producto
+│   ├── models/
+│   │   ├── train.py                # Matriz y modelos (Popularidad, ItemItem, SVD)
+│   │   └── evaluate.py             # Corte temporal, métricas y comparación
+│   └── utils/
+│       └── mlflow_utils.py         # Registro común de corridas en MLflow
+├── tests/
+│   ├── test_clean.py
+│   ├── test_build_features.py
+│   └── test_modelos.py
+├── app.py                          # Demo en Streamlit
+├── portada-regalos.png             # Portada del README
+├── pytest.ini                      # Configuración de los tests
+├── requirements.txt                # Dependencias con versiones fijas
+└── README.md
+```
+
+## 1. Calidad de datos
 
 **Dataset:** [Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) (UCI, Chen 2012) — 1.067.371 filas, 2009-2011.
 
@@ -84,13 +149,13 @@ Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
 
 **Código:** `src/data/clean.py`
 
-**Tests:** `tests/test_clean.py` (10/10 pasando, según la entrega de calidad de datos).
+**Tests:** `tests/test_clean.py` (14 tests).
 
 **Detalle completo:** `notebooks/01_calidad_datos.ipynb`
 
 Los dos archivos Parquet se generan con `python -m src.data.clean` (ver [Cómo correr el proyecto](#cómo-correr-el-proyecto)). Los datasets no se suben al repositorio.
 
-## 2. Categorías e intereses (Mauricio)
+## 2. Categorías e intereses
 
 ### Categorías de producto
 
@@ -112,9 +177,9 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 Pendiente de completar: relación entre las categorías del catálogo y los intereses del cuestionario.
 
-## 3. EDA y visualizaciones (Cristian)
+## 3. EDA y visualizaciones
 
-Análisis exploratorio completo en [`notebooks/03_EDA.ipynb`](notebooks/03_EDA.ipynb), con un resumen en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
+Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un resumen en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
 
 Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.402 facturas. Cifras en libras (£); ingreso = cantidad × precio unitario.
 
@@ -137,7 +202,7 @@ Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.40
 3. **Productos baratos y pedidos de varios productos:** el producto típico cuesta **£2,10** (3 de cada 4 cuestan £4,25 o menos) y un pedido típico lleva **15 productos distintos** → el asistente trabaja con presupuestos bajos por producto y puede sugerir varios productos (combos) dentro de un mismo presupuesto.
 
 
-## 4. Modelos (Ezequiel y Franco)
+## 4. Modelos
 
 El sistema recomienda productos complementarios a partir de un producto elegido (**ancla**): aprende
 qué productos suelen aparecer juntos en una misma factura. Los modelos se entrenan con
@@ -225,9 +290,11 @@ Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo v
 | SVD | 50 componentes, tope 200 | 7,0% | 0,048 | 53,5% | 7,0% |
 | Popularidad (baseline) | criterio "facturas" | 1,8% | 0,011 | 0,1% | 2,3% |
 
+Cobertura = productos distintos que el modelo recomendó alguna vez, sobre los 4.456 productos que existen en el período de desarrollo (no sobre los 4.725 del dataset completo).
+
 ![Comparación final de modelos](reports/figures/04_comparacion_final.png)
 
-## 5. Justificación del modelo y plan de validación (Franco)
+## 5. Justificación del modelo y plan de validación
 
 ### Plan de validación
 
@@ -282,7 +349,7 @@ El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de dici
 tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
-## 6. Demo en Streamlit (Mafe)
+## 6. Demo en Streamlit
 
 Se desarrolló y desplegó una primera versión funcional de la interfaz del
 Asistente de Regalos en Streamlit.
@@ -295,7 +362,7 @@ seleccionar un rango de presupuesto y visualizar la experiencia propuesta.
 La integración con el catálogo de productos y el modelo de recomendación
 se incorporará en la siguiente etapa del proyecto.
 
-## 7. Pipeline reproducible y monitoreo (Mauricio)
+## 7. Pipeline reproducible y monitoreo
 
 El proyecto se puede reproducir y revisar gracias a dos piezas: los tests corren solos en cada Pull Request (GitHub Actions) y todos los experimentos de modelado quedan registrados en un mismo lugar (MLflow).
 
