@@ -118,6 +118,7 @@ asistente-regalos-ecommerce/
 ├── portada-regalos.png             # Portada del README
 ├── pytest.ini                      # Configuración de los tests
 ├── requirements.txt                # Dependencias con versiones fijas
+├── README_EDA.md                   # Informe ejecutivo del EDA
 └── README.md
 ```
 
@@ -179,7 +180,7 @@ Pendiente de completar: relación entre las categorías del catálogo y los inte
 
 ## 3. EDA y visualizaciones
 
-Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un resumen en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
+Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un informe ejecutivo de los hallazgos y lo que implican para el asistente en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
 
 Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.402 facturas. Cifras en libras (£); ingreso = cantidad × precio unitario.
 
