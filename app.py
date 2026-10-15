@@ -289,11 +289,12 @@ with st.container(key="presupuesto", border=True):
     st.write("Elegí cuánto querés destinar al regalo o al combo completo.")
 
     rangos_presupuesto = {
-    "De £5 a £20": (5, 20),
-    "De £20 a £50": (20, 50),
-    "De £50 a £100": (50, 100),
-    "De £100 a £200": (100, 200),
-}
+        "De £0 a £2": (0, 2),
+        "De £2 a £5": (2, 5),
+        "De £5 a £15": (5, 15),
+        "De £15 a £30": (15, 30),
+        "Más de £30": (30, 1000),
+    }
 
     presupuesto = st.selectbox(
         "Tu presupuesto total",
@@ -303,13 +304,13 @@ with st.container(key="presupuesto", border=True):
 
     precio_minimo, precio_maximo = rangos_presupuesto[presupuesto]
 
-    minimo_texto = f"{precio_minimo:,.0f}".replace(",", ".")
-    maximo_texto = f"{precio_maximo:,.0f}".replace(",", ".")
+    if precio_maximo >= 1000:
+        texto_importe = f"£{precio_minimo} <span>o más</span>"
+    else:
+        texto_importe = f"£{precio_minimo} <span>a</span> £{precio_maximo}"
 
     st.markdown(
-        f'<div class="importe-presupuesto">'
-        f'£{minimo_texto} <span>a</span> £{maximo_texto}'
-        f'</div>',
+        f'<div class="importe-presupuesto">{texto_importe}</div>',
         unsafe_allow_html=True,
     )
 st.caption("Precios en libras esterlinas (£), del catálogo de una tienda del Reino Unido.")
@@ -330,9 +331,11 @@ with st.form("cuestionario_regalos"):
             "Cocina y repostería",
             "Decoración y hogar",
             "Jardín y flores",
-            "Manualidades",
+            "Papelería y manualidades",
             "Accesorios",
             "Fiestas y celebraciones",
+            "Niños y juegos",
+            "Velas y aromas",
             "¡Sorprendeme!",
         ],
         help="Podés elegir varias. Si no sabés, elegí solo ¡Sorprendeme!",
