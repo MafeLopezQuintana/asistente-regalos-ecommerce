@@ -289,11 +289,11 @@ with st.container(key="presupuesto", border=True):
     st.write("Elegí cuánto querés destinar al regalo o al combo completo.")
 
     rangos_presupuesto = {
-        "De $50.000 a $100.000": (50000, 100000),
-        "De $100.000 a $150.000": (100000, 150000),
-        "De $150.000 a $200.000": (150000, 200000),
-        "De $200.000 a $300.000": (200000, 300000),
-    }
+    "De £5 a £20": (5, 20),
+    "De £20 a £50": (20, 50),
+    "De £50 a £100": (50, 100),
+    "De £100 a £200": (100, 200),
+}
 
     presupuesto = st.selectbox(
         "Tu presupuesto total",
@@ -308,11 +308,11 @@ with st.container(key="presupuesto", border=True):
 
     st.markdown(
         f'<div class="importe-presupuesto">'
-        f'${minimo_texto} <span>a</span> ${maximo_texto}'
+        f'£{minimo_texto} <span>a</span> £{maximo_texto}'
         f'</div>',
         unsafe_allow_html=True,
     )
-
+st.caption("Precios en libras esterlinas (£), del catálogo de una tienda del Reino Unido.")
 
 # 5. Un único formulario con cinco preguntas.
 st.divider()
@@ -378,54 +378,34 @@ with st.form("cuestionario_regalos"):
     )
 
 
-# 6. Validación y resumen de las respuestas.
-if enviado:
-    if not intereses:
-        st.warning("Elegí algún interés o la opción ¡Sorprendeme!.")
-
-    elif "¡Sorprendeme!" in intereses and len(intereses) > 1:
-        st.warning(
-            "Elegí intereses concretos o solo ¡Sorprendeme!, "
-            "para que tu respuesta sea clara."
-        )
-
-    else:
-        st.success("¡Listo! Este es el resumen de tus preferencias.")
-        st.write("**Presupuesto:**", presupuesto)
-        st.write("**Para quién:**", destinatario)
-        st.write("**Intereses:**", ", ".join(intereses))
-        st.write("**Ocasión:**", ocasion)
-        st.write("**Tipo de regalo:**", tipo_regalo)
-        st.write("**Producto de referencia:**", producto_previo)
-
-        st.info(
-            "Todavía no se generan recomendaciones. "
-            "El próximo paso es conectar el catálogo y el modelo."
-        )
-        
+# 6. Personalización de la tarjeta.
 st.divider()
 st.subheader("🎁 Personalizá tu regalo")
 
 personalizar = st.checkbox("Quiero agregar una tarjeta")
 
+destinatario = ""
+mensaje = ""
+remitente = ""
+
 if personalizar:
     destinatario = st.text_input(
         "¿Para quién es?",
         placeholder="Ejemplo: Sofi",
-        key="tarjeta_destinatario"
+        key="tarjeta_destinatario",
     )
 
     mensaje = st.text_area(
         "¿Qué querés decirle?",
         placeholder="Escribí tu dedicatoria...",
         max_chars=300,
-        key="tarjeta_mensaje"
+        key="tarjeta_mensaje",
     )
 
     remitente = st.text_input(
         "¿Quién lo envía?",
         placeholder="Tu nombre o firma",
-        key="tarjeta_remitente"
+        key="tarjeta_remitente",
     )
 
     st.markdown("### 💌 Vista previa")
@@ -438,5 +418,34 @@ if personalizar:
 
     if remitente.strip():
         st.write("Con cariño,", remitente)
-        
+
+
+# 7. Validación y resumen de las respuestas.
+if enviado:
+    if not intereses:
+        st.warning("Elegí algún interés o la opción ¡Sorprendeme!.")
+
+    elif "¡Sorprendeme!" in intereses and len(intereses) > 1:
+        st.warning(
+            "Elegí intereses concretos o solo ¡Sorprendeme!, "
+            "para que tu respuesta sea clara."
+        )
+
+    else:
+        st.success("¡Listo! Este es el resumen de tus preferencias.")
+
+        st.write("**Presupuesto:**", presupuesto)
+        st.write("**Intereses:**", ", ".join(intereses))
+        st.write("**Ocasión:**", ocasion)
+        st.write("**Tipo de regalo:**", tipo_regalo)
+        st.write("**Producto de referencia:**", producto_previo)
+
+        if personalizar and destinatario.strip():
+            st.write("**Para quién:**", destinatario)
+
+        st.info(
+            "Todavía no se generan recomendaciones. "
+            "El próximo paso es conectar el catálogo y el modelo."
+        )
+
 st.caption("Presente Analytics · Proyecto Final Henry")
