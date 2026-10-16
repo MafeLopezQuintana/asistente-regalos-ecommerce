@@ -350,6 +350,98 @@ El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de dici
 tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
+### Plan de monitoreo — propuesta para revisión
+
+El monitoreo busca detectar cambios en la calidad de las recomendaciones del modelo item-item después de su integración con la aplicación.
+
+Se distinguirán la evaluación del modelo sobre compras históricas y las pruebas de las recomendaciones que recibe el usuario, porque los filtros de presupuesto e intereses pueden modificar los resultados originales del modelo.
+
+**Pendientes para cerrar el plan:**
+
+- Acordar la definición y el cálculo de diversidad.
+- Confirmar los datos y períodos de la simulación de monitoreo.
+- Confirmar qué controles implementará el script y cuáles se verificarán mediante pruebas de la aplicación.
+
+#### a. Referencia inicial
+
+Se conservarán como referencia los resultados de la evaluación final en modo ancla:
+
+| Indicador | Resultado de referencia |
+|---|---:|
+| Hit Rate@5 | 8,4 % |
+| NDCG@5 | 0,059 |
+| Cobertura del catálogo | 61,6 % |
+| Casos evaluados | 7.190 |
+| Diversidad | Pendiente de definición y cálculo |
+
+Estos valores describen el desempeño sobre el período histórico evaluado. Para compararlos con futuras evaluaciones se deberán documentar el modo de evaluación, la cantidad de recomendaciones, la construcción de casos y el catálogo utilizado como denominador de cobertura.
+
+#### b. Controles propuestos
+
+| Dimensión | Control | Propósito |
+|---|---|---|
+| Acierto | Hit Rate@5 y NDCG@5 | Detectar si disminuyen los aciertos o empeora su posición. |
+| Alcance | Cobertura del catálogo | Identificar concentración en pocos productos. |
+| Variedad | Diversidad, con definición acordada por el equipo | Evaluar la variedad de las recomendaciones. |
+| Calidad de datos | Campos necesarios completos, precios válidos y códigos compatibles con el modelo | Detectar problemas del catálogo. |
+| Funcionamiento de la aplicación | Recomendaciones dentro del presupuesto, sin duplicados y con explicación | Verificar las condiciones del producto. |
+| Casos sin resultados | Frecuencia de consultas sin sugerencias y uso del respaldo de popularidad | Detectar dificultades para atender determinadas consultas. |
+
+La cobertura y la diversidad se analizarán junto con las métricas de acierto: una mayor variedad de productos, por sí sola, no demuestra mejores recomendaciones.
+
+#### c. Frecuencia y datos de evaluación
+
+Durante el sprint 2 se propone ejecutar una prueba del proceso de monitoreo antes del cierre y conservar evidencia de su funcionamiento.
+
+Como el proyecto utiliza un dataset histórico cerrado, las evaluaciones sobre períodos ya disponibles se identificarán como simulaciones de monitoreo. Repetir la evaluación sobre el mismo test permitirá comprobar la reproducibilidad, pero no aportará evidencia de desempeño sobre compras nuevas.
+
+En una implementación con transacciones nuevas, se propone una revisión mensual, siempre que existan suficientes casos evaluables. Si el volumen resulta insuficiente, se ampliará la ventana y se informará esta limitación.
+
+El modelo permanecerá fijo durante cada evaluación y se utilizarán compras posteriores a su entrenamiento.
+
+#### d. Registro y trazabilidad
+
+Se propone que cada ejecución del script registre en MLflow:
+
+- Versión del modelo y del código.
+- Período y fuente de los datos evaluados.
+- Modo de evaluación, semilla y cantidad de recomendaciones.
+- Cantidad de casos incluidos y excluidos.
+- Métricas obtenidas y tamaño del catálogo de referencia.
+- Identificación de la corrida como simulación o evaluación con datos nuevos.
+
+Las corridas se identificarán con el tag `etapa="monitoreo"`.
+
+Las métricas del modelo sin filtros y las pruebas del resultado final de la aplicación se presentarán por separado.
+
+#### e. Criterios de revisión y acciones
+
+Una caída en Hit Rate@5 o NDCG@5 motivará una revisión del período evaluado, el volumen de casos, la calidad de los datos y los cambios en el catálogo.
+
+También se analizarán reducciones de cobertura, concentración de recomendaciones y mayor frecuencia de consultas sin resultados.
+
+En esta etapa no se fija un umbral numérico de alerta, porque todavía no se dispone de una serie de monitoreo que permita distinguir la variación habitual de una degradación persistente.
+
+Los incumplimientos de reglas del producto, como superar el presupuesto o recomendar códigos inexistentes en el catálogo, se tratarán como errores de funcionamiento.
+
+Ante un problema se propone:
+
+1. Verificar los datos y la integración.
+2. Analizar si el cambio se concentra en determinadas categorías o consultas.
+3. Determinar si corresponde corregir datos, filtros o modelo.
+4. Si se propone reentrenar, comparar la nueva versión con la vigente mediante validación temporal antes de reemplazarla.
+
+Los resultados de monitoreo no se utilizarán para ajustar repetidamente el modelo y seguir presentando ese mismo período como una evaluación independiente.
+
+#### f. Responsabilidades propuestas
+
+| Responsable | Aporte |
+|---|---|
+| Franco — Validación de modelos | Definir el protocolo, revisar la comparabilidad de las métricas, interpretar los resultados y documentar conclusiones y limitaciones. |
+| Ezequiel — Modelado | Acordar e implementar las métricas necesarias y participar en el análisis del comportamiento del modelo. |
+| Mauricio — Pipeline y monitoreo | Implementar la ejecución reproducible y el registro de las corridas en MLflow. |
+
+
 ## 6. Demo en Streamlit
 
 Se desarrolló y desplegó una primera versión funcional de la interfaz del
@@ -407,7 +499,20 @@ Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://1
 
 ### 7.3 Monitoreo
 
-Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
+El protocolo propuesto se describe en la sección 5, en “Plan de monitoreo — propuesta para revisión”. Allí se detallan las métricas, los criterios de interpretación y las responsabilidades.
+
+Para el cierre del sprint 2 se prevé implementar un script que:
+
+- Cargue el modelo elegido y los datos del período a evaluar.
+- Construya los casos con los mismos criterios documentados en la evaluación original.
+- Reevalúe el modelo mediante `evaluar()` de `src/models/evaluate.py`.
+- Registre las métricas y la información necesaria para reproducir la ejecución en MLflow, con el tag `etapa="monitoreo"`.
+
+La definición de diversidad, los períodos de evaluación y los controles incluidos en el script están pendientes de acuerdo entre los responsables de validación, modelado y pipeline.
+
+Dado que el proyecto utiliza un dataset histórico cerrado, la ejecución prevista para este sprint se identificará como una simulación de monitoreo. Su objetivo será demostrar el funcionamiento del proceso; no permitirá afirmar que se ha medido el desempeño sobre transacciones nuevas.
+
+Las pruebas de presupuesto, duplicados y explicaciones de las recomendaciones se realizarán sobre la aplicación y se documentarán por separado de las métricas del modelo.
 
 ## Limitaciones
 
