@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import streamlit as st
@@ -7,12 +8,35 @@ import streamlit as st
 CARPETA_PROYECTO = Path(__file__).resolve().parent
 PORTADA = CARPETA_PROYECTO / "assets" / "portada.png"
 
+RUTA_INTERESES = CARPETA_PROYECTO / "models" / "intereses.csv"
+SORPRENDEME = "¡Sorprendeme!"
+INTERESES_RESPALDO = [
+    "Decoración y hogar",
+    "Cocina y repostería",
+    "Accesorios",
+    "Papelería y manualidades",
+    "Fiestas y celebraciones",
+    "Velas y aromas",
+    "Niños y juegos",
+    "Jardín y flores",
+]
+
+
+def cargar_intereses():
+    """Lee los intereses de models/intereses.csv; si falla, usa la lista de respaldo."""
+    try:
+        with open(RUTA_INTERESES, encoding="utf-8", newline="") as archivo:
+            nombres = [fila["interes"] for fila in csv.DictReader(archivo)]
+        nombres = [n for n in nombres if n and n != SORPRENDEME]
+    except (OSError, KeyError):
+        nombres = []
+    return (nombres or INTERESES_RESPALDO) + [SORPRENDEME]
+
 st.set_page_config(
     page_title="¿Qué le regalo?",
     page_icon="🎁",
     layout="centered",
 )
-
 
 # 2. Estilos de la pantalla.
 st.markdown(
@@ -327,17 +351,7 @@ st.caption("Vista previa: los intereses se validarán con el catálogo.")
 with st.form("cuestionario_regalos"):
     intereses = st.multiselect(
         "1. ¿Qué cosas le encantan?",
-        [
-            "Cocina y repostería",
-            "Decoración y hogar",
-            "Jardín y flores",
-            "Papelería y manualidades",
-            "Accesorios",
-            "Fiestas y celebraciones",
-            "Niños y juegos",
-            "Velas y aromas",
-            "¡Sorprendeme!",
-        ],
+        cargar_intereses(),
         help="Podés elegir varias. Si no sabés, elegí solo ¡Sorprendeme!",
     )
 
@@ -428,7 +442,7 @@ if enviado:
     if not intereses:
         st.warning("Elegí algún interés o la opción ¡Sorprendeme!.")
 
-    elif "¡Sorprendeme!" in intereses and len(intereses) > 1:
+    elif SORPRENDEME in intereses and len(intereses) > 1:
         st.warning(
             "Elegí intereses concretos o solo ¡Sorprendeme!, "
             "para que tu respuesta sea clara."
