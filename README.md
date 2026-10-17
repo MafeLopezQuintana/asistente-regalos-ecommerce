@@ -6,17 +6,31 @@ Proyecto Final Henry · Presente Analytics
 
 Asistente que, a partir de un cuestionario de 5 preguntas, sugiere regalos individuales y combos dentro del presupuesto, usando modelos de recomendación entrenados con compras reales (Online Retail II).
 
+## Índice
+
+- [Equipo y roles](#equipo-y-roles)
+- [Cómo correr el proyecto](#cómo-correr-el-proyecto)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [1. Calidad de datos](#1-calidad-de-datos)
+- [2. Categorías e intereses](#2-categorías-e-intereses)
+- [3. EDA y visualizaciones](#3-eda-y-visualizaciones)
+- [4. Modelos](#4-modelos)
+- [5. Justificación del modelo y plan de validación](#5-justificación-del-modelo-y-plan-de-validación)
+- [6. Demo en Streamlit](#6-demo-en-streamlit)
+- [7. Pipeline reproducible y monitoreo](#7-pipeline-reproducible-y-monitoreo)
+- [Limitaciones](#limitaciones)
+
 ## Equipo y roles
 
 Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentación del PF: todos programamos y aportamos por igual a todo el proyecto.
 
-| Integrante | Rol formal | Aporte adicional | Frente técnico |
-| --- | --- | --- | --- |
-| Franco | Product Owner | Visualización y dashboards | Modelado |
-| Mafe | Scrum Master | Visualización y dashboards | Demo en Streamlit y README |
-| Cristian | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI |
-| Ezequiel | Liderazgo técnico (Data Team) | Documentación y Git | Modelado |
-| Mauricio | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos |
+| Integrante | Rol formal | Aporte adicional | Frente técnico | LinkedIn |
+| --- | --- | --- | --- | --- |
+| Franco Correa | Product Owner | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
+| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
+| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
+| Ezequiel Irianni | Liderazgo técnico (Data Team) | Documentación y Git | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ezequielirianni/) |
+| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
 
 ## Cómo correr el proyecto
 
@@ -42,9 +56,79 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
-Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
+   **Generar el catálogo de la app** (necesita el paso anterior):
 
-## 1. Calidad de datos (Mauricio)
+```bash
+   python -m src.data.catalogo_app
+```
+
+**Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+**Correr los tests:**
+
+```bash
+python -m pytest
+```
+
+**Abrir la demo en Streamlit** (local):
+
+```bash
+streamlit run app.py
+```
+
+La versión publicada está en https://quele-regalo.streamlit.app (ver [6. Demo en Streamlit](#6-demo-en-streamlit)).
+
+## Estructura del repositorio
+
+```
+asistente-regalos-ecommerce/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # CI: corre los tests en cada PR
+├── .streamlit/
+│   └── config.toml                 # Configuración visual de la demo
+├── assets/
+│   └── portada.png                 # Imagen de la demo
+├── data/                           # Local, no se sube (ver .gitignore)
+│   ├── raw/                        # online_retail_II.xlsx (original)
+│   └── processed/                  # Parquets limpios y catálogo
+├── models/                         # catalogo_app.parquet, intereses.csv, modelo_final.pkl
+├── notebooks/
+│   ├── img/                        # Gráficos del análisis de categorías
+│   ├── 01_calidad_datos.ipynb      # Limpieza y calidad de datos
+│   ├── 02b_categorias.ipynb        # Categorías de producto (TF-IDF + K-Means)
+│   ├── 03_eda.ipynb                # Análisis exploratorio
+│   └── 04_modelos.ipynb            # Modelos: validación y comparación final
+├── reports/
+│   ├── figures/                    # Gráficos del EDA (01, 02) y de modelos (04)
+│   └── comparacion_modelos.csv     # Tabla final de modelos
+├── src/
+│   ├── data/
+│   │   └── clean.py                # Limpieza → datasets en Parquet
+│   ├── features/
+│   │   └── build_features.py       # Categorías de producto
+│   ├── models/
+│   │   ├── train.py                # Matriz y modelos (Popularidad, ItemItem, SVD)
+│   │   └── evaluate.py             # Corte temporal, métricas y comparación
+│   └── utils/
+│       └── mlflow_utils.py         # Registro común de corridas en MLflow
+├── tests/
+│   ├── test_clean.py
+│   ├── test_build_features.py
+│   └── test_modelos.py
+├── app.py                          # Demo en Streamlit
+├── portada-regalos.png             # Portada del README
+├── pytest.ini                      # Configuración de los tests
+├── requirements.txt                # Dependencias con versiones fijas
+├── README_EDA.md                   # Informe ejecutivo del EDA
+└── README.md
+```
+
+## 1. Calidad de datos
 
 **Dataset:** [Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) (UCI, Chen 2012) — 1.067.371 filas, 2009-2011.
 
@@ -72,13 +156,13 @@ Pendiente de completar: comando para abrir la demo en Streamlit (Mafe).
 
 **Código:** `src/data/clean.py`
 
-**Tests:** `tests/test_clean.py` (10/10 pasando, según la entrega de calidad de datos).
+**Tests:** `tests/test_clean.py` (14 tests).
 
 **Detalle completo:** `notebooks/01_calidad_datos.ipynb`
 
-Pendiente de completar: instrucciones para generar y cargar los dos archivos Parquet. Los datasets no se suben al repositorio.
+Los dos archivos Parquet se generan con `python -m src.data.clean` (ver [Cómo correr el proyecto](#cómo-correr-el-proyecto)). Los datasets no se suben al repositorio.
 
-## 2. Categorías e intereses (Mauricio)
+## 2. Categorías e intereses
 
 ### Categorías de producto
 
@@ -98,11 +182,31 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 **Modelos congelados:** `data/processed/modelos_categorias.pkl` (no se sube al repo) — vectorizer y K-Means ya entrenados. Productos nuevos se categorizan con `categorizar_productos_nuevos()` sin re-entrenar todo el catálogo, evitando que el número de cada cluster se mueva.
 
-Pendiente de completar: relación entre las categorías del catálogo y los intereses del cuestionario.
+### Intereses del cuestionario
 
-## 3. EDA y visualizaciones (Cristian)
+Al revisar los 4.725 productos uno por uno vimos que K-Means agrupa por palabras repetidas (colores, "SET", "DESIGN") y no por tipo de producto: "Sets y combos" mezcla vajilla, velas y tarjetas, y dentro de "Variedad / Sorpresa" hay juguetes, papelería y artículos de jardín. Por eso los intereses del cuestionario no salen de los clusters: cada interés tiene su lista de palabras clave, se evalúan en orden y gana la primera que coincide (con límite de palabra, para que RING no coincida con STRING). Lo que no coincide con ninguna va a "¡Sorprendeme!".
 
-Análisis exploratorio completo en [`notebooks/03_EDA.ipynb`](notebooks/03_EDA.ipynb), con un resumen en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
+| Interés | Productos | Precio mediano (£) |
+|---|---|---|
+| Decoración y hogar | 1.172 | 2,89 |
+| Cocina y repostería | 825 | 2,55 |
+| Accesorios | 717 | 2,95 |
+| Papelería y manualidades | 454 | 0,85 |
+| Fiestas y celebraciones | 448 | 1,45 |
+| Velas y aromas | 431 | 1,95 |
+| ¡Sorprendeme! | 254 | 1,67 |
+| Niños y juegos | 227 | 2,10 |
+| Jardín y flores | 168 | 3,94 |
+
+Se excluyen 29 productos que no corresponden a un asistente de regalos: vales de regalo, ítems que no son producto (una imagen, rellenos de almohadón) y artículos relacionados con drogas o de humor adulto.
+
+**Código:** `src/data/catalogo_app.py` · **Tests:** `tests/test_catalogo_app.py` (22)
+
+**Salida (se sube al repo porque la lee la app):** `models/catalogo_app.parquet` (4.696 productos, 112 KB; columnas `stock_code`, `description`, `price`, `category`, `interes`) y `models/intereses.csv` (tabla interés → categorías principales del catálogo).
+
+## 3. EDA y visualizaciones
+
+Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un informe ejecutivo de los hallazgos y lo que implican para el asistente en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
 
 Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.402 facturas. Cifras en libras (£); ingreso = cantidad × precio unitario.
 
@@ -125,7 +229,7 @@ Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.40
 3. **Productos baratos y pedidos de varios productos:** el producto típico cuesta **£2,10** (3 de cada 4 cuestan £4,25 o menos) y un pedido típico lleva **15 productos distintos** → el asistente trabaja con presupuestos bajos por producto y puede sugerir varios productos (combos) dentro de un mismo presupuesto.
 
 
-## 4. Modelos (Ezequiel y Franco)
+## 4. Modelos
 
 El sistema recomienda productos complementarios a partir de un producto elegido (**ancla**): aprende
 qué productos suelen aparecer juntos en una misma factura. Los modelos se entrenan con
@@ -213,9 +317,11 @@ Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo v
 | SVD | 50 componentes, tope 200 | 7,0% | 0,048 | 53,5% | 7,0% |
 | Popularidad (baseline) | criterio "facturas" | 1,8% | 0,011 | 0,1% | 2,3% |
 
+Cobertura = productos distintos que el modelo recomendó alguna vez, sobre los 4.456 productos que existen en el período de desarrollo (no sobre los 4.725 del dataset completo).
+
 ![Comparación final de modelos](reports/figures/04_comparacion_final.png)
 
-## 5. Justificación del modelo y plan de validación (Franco)
+## 5. Justificación del modelo y plan de validación
 
 ### Plan de validación
 
@@ -270,7 +376,7 @@ El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de dici
 tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
-## 6. Demo en Streamlit (Mafe)
+## 6. Demo en Streamlit
 
 Se desarrolló y desplegó una primera versión funcional de la interfaz del
 Asistente de Regalos en Streamlit.
@@ -283,9 +389,52 @@ seleccionar un rango de presupuesto y visualizar la experiencia propuesta.
 La integración con el catálogo de productos y el modelo de recomendación
 se incorporará en la siguiente etapa del proyecto.
 
-## 7. Pipeline reproducible y monitoreo (Mauricio)
+## 7. Pipeline reproducible y monitoreo
 
-Pendiente de completar: GitHub Actions, MLflow y cómo se reevalúa el modelo.
+El proyecto se puede reproducir y revisar gracias a dos piezas: los tests corren solos en cada Pull Request (GitHub Actions) y todos los experimentos de modelado quedan registrados en un mismo lugar (MLflow).
+
+### 7.1 Integración continua (GitHub Actions)
+
+El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `main` y en cada push a `main`, sobre una máquina limpia de GitHub (Ubuntu):
+
+| Paso | Qué hace |
+|---|---|
+| Clonar el repo | Descarga el código de la rama del PR |
+| Configurar Python 3.11 | La misma versión indicada en "Cómo correr el proyecto" |
+| Instalar dependencias | `pip install -r requirements.txt` |
+| Correr los tests | `pytest tests/ -v` |
+
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
+
+| Archivo | Tests | Qué cubren |
+|---|---|---|
+| `tests/test_clean.py` | 14 | Filtros de limpieza, segmentación de clientes, facturas bulk, catálogo y cuatro bugs encontrados en la revisión (solapamiento entre hojas del Excel, cancelaciones, clientes anónimos, códigos no-producto) |
+| `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
+| `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
+| `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
+
+Decisiones tomadas:
+
+- **`requirements.txt` con versiones fijas de las dependencias directas, no `pip freeze`.** El freeze incluía paquetes que solo existen en Windows (`pywin32`) o que piden otra versión de Python, y la CI fallaba en Ubuntu.
+- **`pytest.ini` con `pythonpath = .`**, para que `from src...` funcione igual en la CI que en cada máquina, sin modificar `sys.path` dentro de los tests.
+- **Los tests no usan el dataset real**, que no está en el repo: cada test arma un DataFrame chico con el caso que quiere probar.
+- **Los tests de MLflow escriben en una base temporal**, para no mezclarse con las corridas reales del equipo.
+
+### 7.2 Registro de experimentos (MLflow)
+
+`src/utils/mlflow_utils.py` tiene una sola función, `registrar_corrida()`, que usa todo el equipo para registrar parámetros, métricas y, opcionalmente, el modelo entrenado. Así todas las corridas quedan en el mismo experimento y se pueden comparar.
+
+- **Experimento:** `asistente-regalos-ecommerce`.
+- **Dónde se guarda:** `mlflow.db` (base SQLite) y `mlartifacts/`, en la raíz del repo sin importar desde qué carpeta se ejecute: la ruta se calcula a partir de la ubicación del archivo, así un notebook y un script escriben en la misma base.
+- **Modelos guardados con `joblib`:** nuestros modelos no son estimadores de scikit-learn, y así se puede guardar cualquier objeto.
+- **No se suben al repo** (están en `.gitignore`): las corridas se regeneran ejecutando el notebook.
+- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) y `monitoreo`, reservada para la reevaluación del modelo (7.3).
+
+Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://127.0.0.1:5000 y elegir la vista **Model training**.
+
+### 7.3 Monitoreo
+
+Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
 
 ## Limitaciones
 
