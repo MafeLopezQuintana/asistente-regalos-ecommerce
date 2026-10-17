@@ -437,32 +437,54 @@ if personalizar:
         st.write("Con cariño,", remitente)
 
 
-# 7. Validación y resumen de las respuestas.
+# 7. Guardar las respuestas cuando se envía el formulario.
 if enviado:
     if not intereses:
+        st.session_state.pop("resumen_preferencias", None)
         st.warning("Elegí algún interés o la opción ¡Sorprendeme!.")
 
     elif SORPRENDEME in intereses and len(intereses) > 1:
+        st.session_state.pop("resumen_preferencias", None)
         st.warning(
             "Elegí intereses concretos o solo ¡Sorprendeme!, "
             "para que tu respuesta sea clara."
         )
 
     else:
-        st.success("¡Listo! Este es el resumen de tus preferencias.")
+        st.session_state["resumen_preferencias"] = {
+            "presupuesto": presupuesto,
+            "intereses": list(intereses),
+            "ocasion": ocasion,
+            "tipo_regalo": tipo_regalo,
+            "producto_previo": producto_previo,
+            "precio_minimo": precio_minimo,
+            "precio_maximo": precio_maximo,
+        }
 
-        st.write("**Presupuesto:**", presupuesto)
-        st.write("**Intereses:**", ", ".join(intereses))
-        st.write("**Ocasión:**", ocasion)
-        st.write("**Tipo de regalo:**", tipo_regalo)
-        st.write("**Producto de referencia:**", producto_previo)
 
-        if personalizar and destinatario.strip():
-            st.write("**Para quién:**", destinatario)
+# 8. Mostrar el resumen guardado, aunque se edite la tarjeta.
+if "resumen_preferencias" in st.session_state:
+    resumen = st.session_state["resumen_preferencias"]
 
-        st.info(
-            "Todavía no se generan recomendaciones. "
-            "El próximo paso es conectar el catálogo y el modelo."
-        )
+    st.success("¡Listo! Este es el resumen de tus preferencias.")
+
+    st.write("**Presupuesto:**", resumen["presupuesto"])
+    st.write("**Intereses:**", ", ".join(resumen["intereses"]))
+    st.write("**Ocasión:**", resumen["ocasion"])
+    st.write("**Tipo de regalo:**", resumen["tipo_regalo"])
+    st.write("**Producto de referencia:**", resumen["producto_previo"])
+
+    if personalizar and destinatario.strip():
+        st.write("**Para quién:**", destinatario)
+
+    st.caption(
+        "Este resumen corresponde al último envío. "
+        "Si cambiás tus preferencias, volvé a presionar Ver mis preferencias."
+    )
+
+    st.info(
+        "Todavía no se generan recomendaciones. "
+        "El próximo paso es conectar el catálogo y el modelo."
+    )
 
 st.caption("Presente Analytics · Proyecto Final Henry")
