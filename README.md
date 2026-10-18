@@ -56,16 +56,22 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
-   **Generar el catálogo de la app** (necesita el paso anterior):
+**Generar el catálogo de la app** (necesita el paso anterior):
 
 ```bash
-   python -m src.data.catalogo_app
+python -m src.data.catalogo_app
 ```
 
 **Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
 
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+**Correr el monitoreo** (simulación mes a mes, necesita `data/processed/online_retail_modelo.parquet`; las corridas quedan en MLflow con `etapa="monitoreo"`):
+
+```bash
+python -m src.models.monitoreo
 ```
 
 **Correr los tests:**
