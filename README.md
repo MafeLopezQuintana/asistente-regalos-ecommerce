@@ -56,6 +56,12 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
+   **Generar el catálogo de la app** (necesita el paso anterior):
+
+```bash
+   python -m src.data.catalogo_app
+```
+
 **Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
 
 ```bash
@@ -90,7 +96,7 @@ asistente-regalos-ecommerce/
 ├── data/                           # Local, no se sube (ver .gitignore)
 │   ├── raw/                        # online_retail_II.xlsx (original)
 │   └── processed/                  # Parquets limpios y catálogo
-├── models/                         # modelo_final.pkl (Sprint 2)
+├── models/                         # catalogo_app.parquet, intereses.csv, modelo_final.pkl
 ├── notebooks/
 │   ├── img/                        # Gráficos del análisis de categorías
 │   ├── 01_calidad_datos.ipynb      # Limpieza y calidad de datos
@@ -176,7 +182,27 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 **Modelos congelados:** `data/processed/modelos_categorias.pkl` (no se sube al repo) — vectorizer y K-Means ya entrenados. Productos nuevos se categorizan con `categorizar_productos_nuevos()` sin re-entrenar todo el catálogo, evitando que el número de cada cluster se mueva.
 
-Pendiente de completar: relación entre las categorías del catálogo y los intereses del cuestionario.
+### Intereses del cuestionario
+
+Al revisar los 4.725 productos uno por uno vimos que K-Means agrupa por palabras repetidas (colores, "SET", "DESIGN") y no por tipo de producto: "Sets y combos" mezcla vajilla, velas y tarjetas, y dentro de "Variedad / Sorpresa" hay juguetes, papelería y artículos de jardín. Por eso los intereses del cuestionario no salen de los clusters: cada interés tiene su lista de palabras clave, se evalúan en orden y gana la primera que coincide (con límite de palabra, para que RING no coincida con STRING). Lo que no coincide con ninguna va a "¡Sorprendeme!".
+
+| Interés | Productos | Precio mediano (£) |
+|---|---|---|
+| Decoración y hogar | 1.172 | 2,89 |
+| Cocina y repostería | 825 | 2,55 |
+| Accesorios | 717 | 2,95 |
+| Papelería y manualidades | 454 | 0,85 |
+| Fiestas y celebraciones | 448 | 1,45 |
+| Velas y aromas | 431 | 1,95 |
+| ¡Sorprendeme! | 254 | 1,67 |
+| Niños y juegos | 227 | 2,10 |
+| Jardín y flores | 168 | 3,94 |
+
+Se excluyen 29 productos que no corresponden a un asistente de regalos: vales de regalo, ítems que no son producto (una imagen, rellenos de almohadón) y artículos relacionados con drogas o de humor adulto.
+
+**Código:** `src/data/catalogo_app.py` · **Tests:** `tests/test_catalogo_app.py` (22)
+
+**Salida (se sube al repo porque la lee la app):** `models/catalogo_app.parquet` (4.696 productos, 112 KB; columnas `stock_code`, `description`, `price`, `category`, `interes`) y `models/intereses.csv` (tabla interés → categorías principales del catálogo).
 
 ## 3. EDA y visualizaciones
 
@@ -378,12 +404,13 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 54 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
 | `tests/test_clean.py` | 14 | Filtros de limpieza, segmentación de clientes, facturas bulk, catálogo y cuatro bugs encontrados en la revisión (solapamiento entre hojas del Excel, cancelaciones, clientes anónimos, códigos no-producto) |
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
+| `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
 
 Decisiones tomadas:
