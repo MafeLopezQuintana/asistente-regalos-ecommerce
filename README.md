@@ -404,7 +404,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 83 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -412,6 +412,7 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
+| `tests/test_monitoreo.py` | 7 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, regla de alerta y registro en MLflow |
 
 Decisiones tomadas:
 
