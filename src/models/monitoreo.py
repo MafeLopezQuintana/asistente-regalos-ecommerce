@@ -12,21 +12,26 @@ Por cada mes se mide:
   - pct_productos_nuevos: % de productos vendidos en el mes que el modelo nunca
     vio. Si sube, el catálogo está cambiando y el modelo se queda sin datos.
 
-Regla de alerta: el mes se marca si su Hit Rate@5 está por debajo de la
-referencia de validación (9,4%, sección 5 del README) incluso tomando el
+Alerta de referencia: el mes se marca si su Hit Rate@5 está por debajo de
+la referencia de validación (9,4%, sección 5 del README) incluso tomando el
 límite superior de su intervalo de confianza del 95%. Así un mes con pocos
-casos no dispara la alerta solo por azar.
+casos no dispara la alerta solo por azar. Es una referencia para revisar,
+no un umbral definitivo (acordado con validación).
 
-Cada mes queda como una corrida en MLflow con etapa="monitoreo".
+Como el dataset es histórico, es una simulación de monitoreo: cada mes queda
+en MLflow con etapa="monitoreo" y tipo="simulacion", junto con la versión del
+código y la fuente de los datos, para poder reproducir la corrida.
 
 Uso, desde la raíz del repo:
     python -m src.models.monitoreo
 """
+import subprocess
+
 import numpy as np
 import pandas as pd
 
-from src.models.evaluate import (COL_FACTURA, COL_FECHA, COL_PRODUCTO, cargar_datos_modelo,
-                                 construir_casos, corte_temporal, evaluar)
+from src.models.evaluate import (COL_FACTURA, COL_FECHA, COL_PRODUCTO, RUTA_DATOS_MODELO,
+                                 cargar_datos_modelo, construir_casos, corte_temporal, evaluar)
 from src.models.train import ItemItem, Popularidad
 
 # Configuración elegida en la validación cruzada (README, sección 5)
@@ -65,9 +70,20 @@ def limite_superior_ic95(proporcion, n):
     return proporcion + 1.96 * np.sqrt(proporcion * (1 - proporcion) / n)
 
 
+def version_codigo():
+    """Commit de git con el que se corre el monitoreo, para poder reproducirlo."""
+    try:
+        resultado = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                                   capture_output=True, text=True, check=True)
+        return resultado.stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "desconocida"
+
+
 def monitorear(df, params_modelo=None, referencia=REFERENCIA_HIT_RATE,
                proporcion_train=PROPORCION_TRAIN, k=K, semilla=SEMILLA,
-               registrar_mlflow=True, experimento=None, tracking_uri=None):
+               registrar_mlflow=True, experimento=None, tracking_uri=None,
+               fuente_datos=RUTA_DATOS_MODELO):
     """Entrena una vez con el desarrollo y evalúa el modelo en cada mes posterior.
 
     Devuelve un DataFrame con una fila por mes. Si registrar_mlflow=True, cada
@@ -95,6 +111,8 @@ def monitorear(df, params_modelo=None, referencia=REFERENCIA_HIT_RATE,
             f"hit_rate_at_{k}_baseline": evaluar(baseline, casos, k=k)[f"hit_rate_at_{k}"],
             "pct_productos_nuevos": pct_productos_nuevos(df_mes, conocidos),
             "pct_facturas_evaluables": info.get("pct_facturas_evaluables", 0.0),
+            "facturas_mes": info["facturas_evaluadas"],
+            "facturas_excluidas": info["facturas_evaluadas"] - metricas["casos"],
             "ic95_superior": limite,
             "alerta": bool(limite < referencia),
         })
@@ -112,12 +130,15 @@ def monitorear(df, params_modelo=None, referencia=REFERENCIA_HIT_RATE,
 
         parametros = {**modelo.get_params(), "k": k, "semilla": semilla,
                       "referencia_hit_rate": referencia,
-                      "fecha_corte": str(fecha_corte.date())}
+                      "fecha_corte": str(fecha_corte.date()),
+                      "version_codigo": version_codigo(),
+                      "fuente_datos": str(fuente_datos)}
         for _, fila in resultado.iterrows():
             metricas = {c: float(fila[c]) for c in resultado.columns
                         if c not in ("mes", "alerta")}
             registrar_corrida(f"monitoreo_{fila['mes']}", {**parametros, "mes": fila["mes"]},
-                              metricas, tags={"etapa": "monitoreo", "familia": "item_item",
+                              metricas, tags={"etapa": "monitoreo", "tipo": "simulacion",
+                                              "familia": "item_item",
                                               "mes": fila["mes"],
                                               "alerta": str(fila["alerta"]).lower()},
                               **destino)
@@ -127,15 +148,16 @@ def monitorear(df, params_modelo=None, referencia=REFERENCIA_HIT_RATE,
 
 def main():
     resultado = monitorear(cargar_datos_modelo())
-    tabla = resultado[["mes", "casos", f"hit_rate_at_{K}", f"hit_rate_at_{K}_baseline",
+    tabla = resultado[["mes", "casos", "facturas_excluidas", f"hit_rate_at_{K}", f"hit_rate_at_{K}_baseline",
                        "ic95_superior", "pct_productos_nuevos", "alerta"]].copy()
     for col in (f"hit_rate_at_{K}", f"hit_rate_at_{K}_baseline", "ic95_superior"):
         tabla[col] = (100 * tabla[col]).round(1)
     tabla["pct_productos_nuevos"] = tabla["pct_productos_nuevos"].round(1)
 
-    print(f"Referencia (validación): Hit Rate@{K} = {100 * REFERENCIA_HIT_RATE:.1f}%\n")
+    print(f"Simulación de monitoreo. Referencia (validación): Hit Rate@{K} = "
+          f"{100 * REFERENCIA_HIT_RATE:.1f}%\n")
     print(tabla.to_string(index=False))
-    print(f"\nMeses con alerta: {int(resultado['alerta'].sum())} de {len(resultado)}")
+    print(f"\nMeses por debajo de la referencia: {int(resultado['alerta'].sum())} de {len(resultado)}")
     print("Corridas registradas en MLflow con etapa='monitoreo'.")
 
 

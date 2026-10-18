@@ -85,3 +85,14 @@ def test_monitorear_registra_en_mlflow(df_meses, tmp_path):
     assert (corridas["tags.etapa"] == "monitoreo").all()
     assert set(corridas["tags.mes"]) == set(resultado["mes"])
     assert "metrics.hit_rate_at_1" in corridas.columns
+    assert (corridas["tags.tipo"] == "simulacion").all()
+    assert corridas["params.version_codigo"].notna().all()
+    assert "metrics.facturas_excluidas" in corridas.columns
+
+
+def test_facturas_excluidas_cuadran(df_meses):
+    # Cada factura del mes es un caso o queda excluida (menos de 2 productos conocidos)
+    resultado = monitorear(df_meses, params_modelo={"min_facturas": 1}, k=1,
+                           registrar_mlflow=False)
+    assert (resultado["facturas_excluidas"] >= 0).all()
+    assert (resultado["casos"] + resultado["facturas_excluidas"] == resultado["facturas_mes"]).all()
