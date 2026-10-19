@@ -5,6 +5,7 @@ Contiene:
   - cargar_datos_modelo: lee el Parquet que genera src/data/clean.py.
   - corte_temporal: separa train y test por fecha, sin partir facturas.
   - hit_rate_at_k y ndcg_at_k: las métricas prometidas en la Propuesta.
+  - diversidad_intra_lista: qué tan distintas son entre sí las k recomendaciones.
   - construir_casos: arma los casos de prueba (qué ve el modelo y qué tiene que adivinar).
   - evaluar: corre un modelo sobre esos casos y devuelve las métricas promedio.
   - folds_temporales y evaluar_cv_temporal: validación cruzada temporal para elegir parámetros.
@@ -180,30 +181,68 @@ def construir_casos(df_test, productos_conocidos, modo="ancla", semilla=42,
 # ---------------------------------------------------------------------------
 # Evaluación
 # ---------------------------------------------------------------------------
-def evaluar(modelo, casos, k=5):
+def diversidad_intra_lista(recomendados, similitud, posicion):
+    """1 − similitud promedio entre todos los pares de la lista.
+
+    Da 0 si los productos son casi intercambiables (siempre se compran juntos,
+    como un mismo producto en distintos colores) y 1 si nunca se compran juntos.
+    `similitud` es la matriz de referencia (coseno de co-compra, simétrica y con
+    la diagonal en 0) y `posicion` el índice de cada stock_code en ella. Un
+    producto que no está en la referencia cuenta con similitud 0 con los demás.
+    Con menos de 2 productos no hay pares: devuelve None.
+    """
+    n = len(recomendados)
+    if n < 2:
+        return None
+    indices = [posicion[p] for p in recomendados if p in posicion]
+    suma = 0.0
+    if len(indices) >= 2:
+        sub = similitud[indices][:, indices].toarray()
+        suma = float(np.triu(sub, k=1).sum())
+    return 1.0 - suma / (n * (n - 1) / 2)
+
+
+def evaluar(modelo, casos, k=5, referencia_diversidad=None):
     """Corre el modelo sobre todos los casos y promedia las métricas.
 
     cobertura_catalogo: qué porcentaje de los productos que conoce el modelo
     llegó a recomendar alguna vez. Un modelo que siempre recomienda lo mismo
     (como el baseline) tiene cobertura muy baja aunque acierte bastante.
+
+    referencia_diversidad (opcional): un ItemItem entrenado con el mismo período
+    que el modelo evaluado. Su matriz de co-compra es la regla común con la que
+    se mide la diversidad de CUALQUIER modelo (la popularidad no tiene similitud
+    propia y la del SVD tiene otra escala), así los valores son comparables. Si
+    se pasa, el resultado suma diversidad_at_k; si no, queda igual que antes.
     """
     if not casos:
         raise ValueError("No hay casos para evaluar")
 
-    hits, ndcgs, recomendados_alguna_vez = [], [], set()
+    if referencia_diversidad is not None:
+        similitud = referencia_diversidad.similitud.tocsr()
+        posicion = {p: i for i, p in enumerate(referencia_diversidad.productos)}
+
+    hits, ndcgs, diversidades, recomendados_alguna_vez = [], [], [], set()
     for caso in casos:
         recs = modelo.recomendar(caso["anclas"], k=k)
         hits.append(hit_rate_at_k(recs, caso["oculto"], k))
         ndcgs.append(ndcg_at_k(recs, caso["oculto"], k))
         recomendados_alguna_vez.update(recs)
+        if referencia_diversidad is not None:
+            valor = diversidad_intra_lista(recs, similitud, posicion)
+            if valor is not None:
+                diversidades.append(valor)
 
     # Nombres sin "@": MLflow no acepta ese carácter en las métricas
-    return {
+    metricas = {
         f"hit_rate_at_{k}": float(np.mean(hits)),
         f"ndcg_at_{k}": float(np.mean(ndcgs)),
         "cobertura_catalogo": len(recomendados_alguna_vez) / modelo.n_productos,
         "casos": len(casos),
     }
+    if referencia_diversidad is not None:
+        metricas[f"diversidad_at_{k}"] = float(np.mean(diversidades)) if diversidades else 0.0
+    return metricas
 
 
 def _registrar(nombre, parametros, metricas, tags, modelo=None,
