@@ -26,11 +26,11 @@ Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentaci
 
 | Integrante | Rol formal | Aporte adicional | Frente técnico | LinkedIn |
 | --- | --- | --- | --- | --- |
-| Franco Correa | Product Owner | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
-| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
-| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
+| Franco Correa | Liderazgo técnico (Data Team) | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
+| Ma Fernanda López Quintana | Project Manager | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
+| Cristian Durán | Business Intelligence | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
 | Ezequiel Irianni | Liderazgo técnico (Data Team) | Documentación y Git | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ezequielirianni/) |
-| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
+| Mauricio Melgarejo | Data Engineer | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
 
 ## Cómo correr el proyecto
 
@@ -54,6 +54,12 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 
 ```bash
 python -m src.features.build_features
+```
+
+   **Generar el catálogo de la app** (necesita el paso anterior):
+
+```bash
+   python -m src.data.catalogo_app
 ```
 
 **Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
@@ -90,7 +96,7 @@ asistente-regalos-ecommerce/
 ├── data/                           # Local, no se sube (ver .gitignore)
 │   ├── raw/                        # online_retail_II.xlsx (original)
 │   └── processed/                  # Parquets limpios y catálogo
-├── models/                         # modelo_final.pkl (Sprint 2)
+├── models/                         # catalogo_app.parquet, intereses.csv, modelo_final.pkl
 ├── notebooks/
 │   ├── img/                        # Gráficos del análisis de categorías
 │   ├── 01_calidad_datos.ipynb      # Limpieza y calidad de datos
@@ -176,7 +182,27 @@ El 26,6% del catálogo sin vocabulario distintivo queda bajo "Variedad / Sorpres
 
 **Modelos congelados:** `data/processed/modelos_categorias.pkl` (no se sube al repo) — vectorizer y K-Means ya entrenados. Productos nuevos se categorizan con `categorizar_productos_nuevos()` sin re-entrenar todo el catálogo, evitando que el número de cada cluster se mueva.
 
-Pendiente de completar: relación entre las categorías del catálogo y los intereses del cuestionario.
+### Intereses del cuestionario
+
+Al revisar los 4.725 productos uno por uno vimos que K-Means agrupa por palabras repetidas (colores, "SET", "DESIGN") y no por tipo de producto: "Sets y combos" mezcla vajilla, velas y tarjetas, y dentro de "Variedad / Sorpresa" hay juguetes, papelería y artículos de jardín. Por eso los intereses del cuestionario no salen de los clusters: cada interés tiene su lista de palabras clave, se evalúan en orden y gana la primera que coincide (con límite de palabra, para que RING no coincida con STRING). Lo que no coincide con ninguna va a "¡Sorprendeme!".
+
+| Interés | Productos | Precio mediano (£) |
+|---|---|---|
+| Decoración y hogar | 1.172 | 2,89 |
+| Cocina y repostería | 825 | 2,55 |
+| Accesorios | 717 | 2,95 |
+| Papelería y manualidades | 454 | 0,85 |
+| Fiestas y celebraciones | 448 | 1,45 |
+| Velas y aromas | 431 | 1,95 |
+| ¡Sorprendeme! | 254 | 1,67 |
+| Niños y juegos | 227 | 2,10 |
+| Jardín y flores | 168 | 3,94 |
+
+Se excluyen 29 productos que no corresponden a un asistente de regalos: vales de regalo, ítems que no son producto (una imagen, rellenos de almohadón) y artículos relacionados con drogas o de humor adulto.
+
+**Código:** `src/data/catalogo_app.py` · **Tests:** `tests/test_catalogo_app.py` (22)
+
+**Salida (se sube al repo porque la lee la app):** `models/catalogo_app.parquet` (4.696 productos, 112 KB; columnas `stock_code`, `description`, `price`, `category`, `interes`) y `models/intereses.csv` (tabla interés → categorías principales del catálogo).
 
 ## 3. EDA y visualizaciones
 
@@ -350,6 +376,7 @@ El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de dici
 tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
+
 ### Plan de monitoreo — propuesta para revisión
 
 El monitoreo busca detectar cambios en la calidad de las recomendaciones del modelo item-item después de su integración con la aplicación.
@@ -449,16 +476,45 @@ Los resultados de monitoreo no se utilizarán para ajustar repetidamente el mode
 
 ## 6. Demo en Streamlit
 
-Se desarrolló y desplegó una primera versión funcional de la interfaz del
-Asistente de Regalos en Streamlit.
+La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usuario como primer paso para encontrar un regalo.
 
-🎁 **Demo pública:** https://quele-regalo.streamlit.app
+🎁 **App pública:** [Abrir ¿Qué le regalo?](https://quele-regalo.streamlit.app)
 
-Actualmente, la aplicación permite completar las preferencias del usuario,
-seleccionar un rango de presupuesto y visualizar la experiencia propuesta.
+### Funcionalidades disponibles
 
-La integración con el catálogo de productos y el modelo de recomendación
-se incorporará en la siguiente etapa del proyecto.
+- Selección del presupuesto total para un regalo o combo:
+  - De £0 a £2.
+  - De £2 a £5.
+  - De £5 a £15.
+  - De £15 a £30.
+  - Más de £30.
+- Selección de uno o varios intereses, o la opción «¡Sorprendeme!».
+- Elección de la ocasión y del formato: regalo individual, combo o ambas opciones.
+- Registro de si el usuario quiere elegir un producto de referencia.
+- Resumen de las preferencias al enviar el formulario.
+- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
+- Vista previa de la tarjeta y conservación del resumen mientras se personaliza.
+
+Los precios se expresan en **libras esterlinas (£)**, de acuerdo con el catálogo de origen.
+
+### Actualización pendiente de integración
+
+Se desarrolló y probó manualmente en Streamlit local un selector de productos reales del catálogo. El cambio está presentado en un Pull Request desde la rama `streamlit-demo`.
+
+Incluye:
+
+- Búsqueda y selección de un producto de referencia.
+- Visualización de su nombre, precio y código en el resumen.
+- Validaciones para evitar contradicciones entre la respuesta del usuario y el producto seleccionado.
+
+### Próximo paso
+
+Conectar la interfaz con el modelo de recomendación para mostrar productos y combos dentro del presupuesto total.
+
+**Actualmente, la app registra preferencias; todavía no genera recomendaciones.**
+
+**Código de la interfaz:** [`app.py`](app.py)
+
 
 ## 7. Pipeline reproducible y monitoreo
 
@@ -475,12 +531,13 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 54 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
 | `tests/test_clean.py` | 14 | Filtros de limpieza, segmentación de clientes, facturas bulk, catálogo y cuatro bugs encontrados en la revisión (solapamiento entre hojas del Excel, cancelaciones, clientes anónimos, códigos no-producto) |
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
+| `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
 
 Decisiones tomadas:
@@ -506,6 +563,15 @@ Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://1
 
 Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
 
+
 ## Limitaciones
 
-Pendiente de completar: qué no cubre este prototipo.
+Este proyecto es un prototipo académico desarrollado para el Proyecto Final de Henry.
+
+- **Datos históricos:** utiliza transacciones de Online Retail II de 2009 a 2011, con foco en Reino Unido. No representa un catálogo comercial actualizado.
+- **Precios de referencia:** los importes están expresados en libras esterlinas (£). No se consultan precios actuales, stock, costos de envío ni conversiones de moneda.
+- **Alcance de la app:** registra preferencias, muestra su resumen y permite personalizar una tarjeta. Todavía no genera recomendaciones ni combos.
+- **Preferencias y modelo:** registrar intereses, ocasión y presupuesto no implica que el modelo ya utilice esas respuestas.
+- **Interpretación de las compras:** que dos productos se compren juntos no garantiza que sean adecuados como regalo ni que reflejen los gustos del destinatario.
+- **Evaluación offline:** las métricas se calculan con transacciones históricas. No miden satisfacción ni demuestran un aumento real de ventas.
+- **Sin operación comercial:** la app no procesa compras, pagos ni envíos, y tampoco envía la tarjeta personalizada.

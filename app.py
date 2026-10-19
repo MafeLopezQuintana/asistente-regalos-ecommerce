@@ -1,12 +1,11 @@
+import csv
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 
-# 1. Configuración de la página y ubicación de la imagen.
-CARPETA_PROYECTO = Path(__file__).resolve().parent
-PORTADA = CARPETA_PROYECTO / "assets" / "portada.png"
-
+# 1. Configuración de la página.
 st.set_page_config(
     page_title="¿Qué le regalo?",
     page_icon="🎁",
@@ -14,7 +13,65 @@ st.set_page_config(
 )
 
 
-# 2. Estilos de la pantalla.
+# 2. Rutas y opciones.
+CARPETA_PROYECTO = Path(__file__).resolve().parent
+
+PORTADA = CARPETA_PROYECTO / "assets" / "portada.png"
+RUTA_INTERESES = CARPETA_PROYECTO / "models" / "intereses.csv"
+RUTA_CATALOGO = CARPETA_PROYECTO / "models" / "catalogo_app.parquet"
+
+SORPRENDEME = "¡Sorprendeme!"
+OPCION_CON_PRODUCTO = "Sí, quiero elegir un producto del catálogo"
+
+INTERESES_RESPALDO = [
+    "Decoración y hogar",
+    "Cocina y repostería",
+    "Accesorios",
+    "Papelería y manualidades",
+    "Fiestas y celebraciones",
+    "Velas y aromas",
+    "Niños y juegos",
+    "Jardín y flores",
+]
+
+
+# 3. Lectura del catálogo y los intereses.
+@st.cache_data
+def cargar_catalogo():
+    catalogo = pd.read_parquet(RUTA_CATALOGO)
+
+    catalogo = catalogo.copy()
+    catalogo["stock_code"] = catalogo["stock_code"].astype(str)
+
+    return catalogo.sort_values("description").reset_index(drop=True)
+
+
+def cargar_intereses():
+    """Lee los intereses; si falla, utiliza la lista de respaldo."""
+    try:
+        with open(
+            RUTA_INTERESES,
+            encoding="utf-8",
+            newline="",
+        ) as archivo:
+            nombres = [
+                fila["interes"]
+                for fila in csv.DictReader(archivo)
+            ]
+
+        nombres = [
+            nombre
+            for nombre in nombres
+            if nombre and nombre != SORPRENDEME
+        ]
+
+    except (OSError, KeyError):
+        nombres = []
+
+    return (nombres or INTERESES_RESPALDO) + [SORPRENDEME]
+
+
+# 4. Estilos de la pantalla.
 st.markdown(
     """
     <style>
@@ -31,7 +88,6 @@ st.markdown(
         letter-spacing: -0.5px;
     }
 
-    /* Caja de las cinco preguntas. */
     [data-testid="stForm"] {
         background-color: #FFFFFF;
         border: 2px solid #CCD8FF;
@@ -47,7 +103,6 @@ st.markdown(
         font-weight: 700;
     }
 
-    /* Botón amarillo. */
     [data-testid="stFormSubmitButton"] button {
         background-color: #FFE600;
         color: #12205C;
@@ -68,7 +123,6 @@ st.markdown(
         outline-offset: 3px;
     }
 
-    /* Tarjeta azul del presupuesto. */
     .st-key-presupuesto {
         background: linear-gradient(135deg, #0739D9, #082575);
         border: none !important;
@@ -117,28 +171,6 @@ st.markdown(
         font-weight: 400;
     }
 
-    @media (max-width: 640px) {
-        [data-testid="stForm"],
-        .st-key-presupuesto {
-            padding: 18px;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# 3. Portada e introducción.
-if PORTADA.exists():
-    st.image(PORTADA, width="stretch")
-else:
-    st.title("🎁 ¿Qué le regalo?")
-    st.warning("Falta guardar la imagen en assets/portada.png.")
-
-st.markdown(
-    """
-    <style>
     .gancho-regalos {
         text-align: center;
         padding: 38px 12px 32px;
@@ -170,8 +202,101 @@ st.markdown(
         max-width: 570px;
         margin: 22px auto 0;
     }
-    </style>
 
+    .pasos-regalos {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin: 8px 0 32px;
+    }
+
+    .paso-regalo {
+        background: #FFFFFF;
+        border: 2px solid #DCE4FF;
+        border-radius: 22px;
+        padding: 24px 20px;
+        box-shadow: 0 8px 22px rgba(0, 47, 160, 0.07);
+        transition: transform 0.2s ease;
+    }
+
+    .paso-regalo:hover {
+        transform: translateY(-5px);
+    }
+
+    .paso-regalo .paso-numero {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        background: #FFE600;
+        color: #12205C;
+        border-radius: 15px;
+        font-size: 22px;
+        font-weight: 800;
+        margin-bottom: 18px;
+    }
+
+    .paso-regalo .paso-titulo {
+        color: #0739D9;
+        font-family: "Trebuchet MS", Arial, sans-serif;
+        font-size: 25px;
+        font-weight: 800;
+        margin: 0 0 10px;
+        letter-spacing: -0.5px;
+    }
+
+    .paso-regalo .paso-texto {
+        color: #12205C;
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .paso-regalo.paso-final {
+        background: #0739D9;
+        border-color: #0739D9;
+    }
+
+    .paso-regalo.paso-final .paso-titulo,
+    .paso-regalo.paso-final .paso-texto {
+        color: #FFFFFF;
+    }
+
+    @media (max-width: 640px) {
+        [data-testid="stForm"],
+        .st-key-presupuesto {
+            padding: 18px;
+        }
+
+        .pasos-regalos {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .paso-regalo {
+            transition: none;
+        }
+
+        .paso-regalo:hover {
+            transform: none;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# 5. Portada e introducción.
+if PORTADA.exists():
+    st.image(PORTADA, width="stretch")
+else:
+    st.title("🎁 ¿Qué le regalo?")
+
+st.markdown(
+    """
     <div class="gancho-regalos">
         <h1 class="gancho-titulo">
             Un regalo que diga:<br>
@@ -188,96 +313,38 @@ st.markdown(
 
 st.markdown(
     """
-<style>
-.pasos-regalos {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    margin: 8px 0 32px;
-}
-.paso-regalo {
-    background: #FFFFFF;
-    border: 2px solid #DCE4FF;
-    border-radius: 22px;
-    padding: 24px 20px;
-    box-shadow: 0 8px 22px rgba(0, 47, 160, 0.07);
-    transition: transform 0.2s ease;
-}
-.paso-regalo:hover {
-    transform: translateY(-5px);
-}
-.paso-regalo .paso-numero {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: #FFE600;
-    color: #12205C;
-    border-radius: 15px;
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 18px;
-}
-.paso-regalo .paso-titulo {
-    color: #0739D9;
-    font-family: "Trebuchet MS", Arial, sans-serif;
-    font-size: 25px;
-    font-weight: 800;
-    margin: 0 0 10px;
-    letter-spacing: -0.5px;
-}
-.paso-regalo .paso-texto {
-    color: #12205C;
-    font-size: 16px;
-    line-height: 1.6;
-    margin: 0;
-}
-.paso-regalo.paso-final {
-    background: #0739D9;
-    border-color: #0739D9;
-}
-.paso-regalo.paso-final .paso-titulo,
-.paso-regalo.paso-final .paso-texto {
-    color: #FFFFFF;
-}
-@media (max-width: 640px) {
-    .pasos-regalos {
-        grid-template-columns: 1fr;
-    }
-}
-@media (prefers-reduced-motion: reduce) {
-    .paso-regalo {
-        transition: none;
-    }
-    .paso-regalo:hover {
-        transform: none;
-    }
-}
-</style>
 <div class="pasos-regalos">
-<div class="paso-regalo">
-<span class="paso-numero">01</span>
-<h3 class="paso-titulo">Contanos 💬</h3>
-<p class="paso-texto">Sus gustos, la ocasión y tu presupuesto. Con cinco respuestas, empezamos.</p>
+    <div class="paso-regalo">
+        <span class="paso-numero">01</span>
+        <h3 class="paso-titulo">Contanos 💬</h3>
+        <p class="paso-texto">
+            Sus gustos, la ocasión y tu presupuesto.
+            Con cinco respuestas, empezamos.
+        </p>
+    </div>
+    <div class="paso-regalo">
+        <span class="paso-numero">02</span>
+        <h3 class="paso-titulo">Descubrí ✨</h3>
+        <p class="paso-texto">
+            Ideas de regalos y combos pensados
+            para esa persona y tu bolsillo.
+        </p>
+    </div>
+    <div class="paso-regalo paso-final">
+        <span class="paso-numero">03</span>
+        <h3 class="paso-titulo">Sorprendé 🎁</h3>
+        <p class="paso-texto">
+            Elegí ese detalle que diga:
+            “Esto me hizo pensar en vos”.
+        </p>
+    </div>
 </div>
-<div class="paso-regalo">
-<span class="paso-numero">02</span>
-<h3 class="paso-titulo">Descubrí ✨</h3>
-<p class="paso-texto">Ideas de regalos y combos pensados para esa persona y tu bolsillo.</p>
-</div>
-<div class="paso-regalo paso-final">
-<span class="paso-numero">03</span>
-<h3 class="paso-titulo">Sorprendé 🎁</h3>
-<p class="paso-texto">Elegí ese detalle que diga: “Esto me hizo pensar en vos”.</p>
-</div>
-</div>
-""",
+    """,
     unsafe_allow_html=True,
 )
 
 
-# 4. Presupuesto, fuera de las tres columnas.
+# 6. Presupuesto.
 with st.container(key="presupuesto", border=True):
     st.markdown(
         '<span class="etiqueta-presupuesto">'
@@ -289,10 +356,11 @@ with st.container(key="presupuesto", border=True):
     st.write("Elegí cuánto querés destinar al regalo o al combo completo.")
 
     rangos_presupuesto = {
-        "De $50.000 a $100.000": (50000, 100000),
-        "De $100.000 a $150.000": (100000, 150000),
-        "De $150.000 a $200.000": (150000, 200000),
-        "De $200.000 a $300.000": (200000, 300000),
+        "De £0 a £2": (0, 2),
+        "De £2 a £5": (2, 5),
+        "De £5 a £15": (5, 15),
+        "De £15 a £30": (15, 30),
+        "Más de £30": (30, 1000),
     }
 
     presupuesto = st.selectbox(
@@ -303,38 +371,67 @@ with st.container(key="presupuesto", border=True):
 
     precio_minimo, precio_maximo = rangos_presupuesto[presupuesto]
 
-    minimo_texto = f"{precio_minimo:,.0f}".replace(",", ".")
-    maximo_texto = f"{precio_maximo:,.0f}".replace(",", ".")
+    if precio_maximo >= 1000:
+        texto_importe = f"£{precio_minimo} <span>o más</span>"
+    else:
+        texto_importe = (
+            f"£{precio_minimo} <span>a</span> £{precio_maximo}"
+        )
 
     st.markdown(
-        f'<div class="importe-presupuesto">'
-        f'${minimo_texto} <span>a</span> ${maximo_texto}'
-        f'</div>',
+        f'<div class="importe-presupuesto">{texto_importe}</div>',
         unsafe_allow_html=True,
     )
 
+st.caption(
+    "Precios en libras esterlinas (£), "
+    "del catálogo de una tienda del Reino Unido."
+)
 
-# 5. Un único formulario con cinco preguntas.
+
+# 7. Cargar el catálogo antes del formulario.
+try:
+    catalogo = cargar_catalogo()
+except FileNotFoundError:
+    st.error(
+        "No se encontró el catálogo. Revisá que exista el archivo "
+        "models/catalogo_app.parquet en tu proyecto."
+    )
+    st.stop()
+
+if catalogo.empty:
+    st.error("El catálogo está vacío. Revisá el archivo del catálogo.")
+    st.stop()
+
+etiquetas_productos = {
+    fila["stock_code"]: (
+        f'{fila["description"]} — £{fila["price"]:.2f}'
+        f' · Código: {fila["stock_code"]}'
+    )
+    for _, fila in catalogo.iterrows()
+}
+
+productos_por_codigo = catalogo.set_index("stock_code").to_dict(
+    orient="index"
+)
+
+
+# 8. Formulario de preferencias.
 st.divider()
 st.subheader("Contanos un poquito de esa persona")
 st.write(
     "¿Qué le gusta? ¿Qué celebran? ¿Un detalle o un combo? "
     "Vamos a encontrar una idea para sorprenderla."
 )
-st.caption("Vista previa: los intereses se validarán con el catálogo.")
+st.caption(
+    "Ya podés explorar el catálogo y elegir un producto de referencia. "
+    "Las recomendaciones se incorporarán en la próxima etapa."
+)
 
 with st.form("cuestionario_regalos"):
     intereses = st.multiselect(
         "1. ¿Qué cosas le encantan?",
-        [
-            "Cocina y repostería",
-            "Decoración y hogar",
-            "Jardín y flores",
-            "Manualidades",
-            "Accesorios",
-            "Fiestas y celebraciones",
-            "¡Sorprendeme!",
-        ],
+        cargar_intereses(),
         help="Podés elegir varias. Si no sabés, elegí solo ¡Sorprendeme!",
     )
 
@@ -362,13 +459,23 @@ with st.form("cuestionario_regalos"):
         "4. ¿Ya viste algo que podría gustarle?",
         [
             "No, necesito ideas",
-            "Sí, quiero elegir un producto del catálogo",
+            OPCION_CON_PRODUCTO,
         ],
     )
 
+    producto_elegido = st.selectbox(
+        "Elegí un producto de referencia (opcional)",
+        options=catalogo["stock_code"].tolist(),
+        index=None,
+        placeholder="Escribí para buscar un producto",
+        format_func=lambda codigo: etiquetas_productos[codigo],
+        key="selector_producto",
+    )
+
     st.caption(
-        "La selección de un producto se habilitará "
-        "cuando conectemos el catálogo."
+        "Si marcaste que ya viste algo, elegilo acá. "
+        "Si necesitás ideas, dejá este campo vacío. "
+        "Los nombres se muestran como aparecen en el catálogo original."
     )
 
     enviado = st.form_submit_button(
@@ -378,54 +485,34 @@ with st.form("cuestionario_regalos"):
     )
 
 
-# 6. Validación y resumen de las respuestas.
-if enviado:
-    if not intereses:
-        st.warning("Elegí algún interés o la opción ¡Sorprendeme!.")
-
-    elif "¡Sorprendeme!" in intereses and len(intereses) > 1:
-        st.warning(
-            "Elegí intereses concretos o solo ¡Sorprendeme!, "
-            "para que tu respuesta sea clara."
-        )
-
-    else:
-        st.success("¡Listo! Este es el resumen de tus preferencias.")
-        st.write("**Presupuesto:**", presupuesto)
-        st.write("**Para quién:**", destinatario)
-        st.write("**Intereses:**", ", ".join(intereses))
-        st.write("**Ocasión:**", ocasion)
-        st.write("**Tipo de regalo:**", tipo_regalo)
-        st.write("**Producto de referencia:**", producto_previo)
-
-        st.info(
-            "Todavía no se generan recomendaciones. "
-            "El próximo paso es conectar el catálogo y el modelo."
-        )
-        
+# 9. Personalización de la tarjeta.
 st.divider()
 st.subheader("🎁 Personalizá tu regalo")
 
 personalizar = st.checkbox("Quiero agregar una tarjeta")
 
+destinatario = ""
+mensaje = ""
+remitente = ""
+
 if personalizar:
     destinatario = st.text_input(
         "¿Para quién es?",
         placeholder="Ejemplo: Sofi",
-        key="tarjeta_destinatario"
+        key="tarjeta_destinatario",
     )
 
     mensaje = st.text_area(
         "¿Qué querés decirle?",
         placeholder="Escribí tu dedicatoria...",
         max_chars=300,
-        key="tarjeta_mensaje"
+        key="tarjeta_mensaje",
     )
 
     remitente = st.text_input(
         "¿Quién lo envía?",
         placeholder="Tu nombre o firma",
-        key="tarjeta_remitente"
+        key="tarjeta_remitente",
     )
 
     st.markdown("### 💌 Vista previa")
@@ -438,5 +525,119 @@ if personalizar:
 
     if remitente.strip():
         st.write("Con cariño,", remitente)
-        
+
+
+# 10. Validar y guardar las respuestas.
+if enviado:
+    quiere_producto = producto_previo == OPCION_CON_PRODUCTO
+    errores = []
+
+    if not intereses:
+        errores.append(
+            "Elegí algún interés o la opción ¡Sorprendeme!."
+        )
+
+    elif SORPRENDEME in intereses and len(intereses) > 1:
+        errores.append(
+            "Elegí intereses concretos o solo ¡Sorprendeme!, "
+            "para que tu respuesta sea clara."
+        )
+
+    if quiere_producto and producto_elegido is None:
+        errores.append(
+            "Marcaste que querés elegir un producto del catálogo. "
+            "Buscalo y seleccionalo antes de continuar."
+        )
+
+    if not quiere_producto and producto_elegido is not None:
+        errores.append(
+            "Seleccionaste un producto, pero marcaste "
+            "«No, necesito ideas». Cambiá la respuesta a "
+            "«Sí, quiero elegir un producto del catálogo» "
+            "o quitá el producto con la X del selector."
+        )
+
+    if errores:
+        st.session_state.pop("resumen_preferencias", None)
+
+        for error in errores:
+            st.warning(error)
+
+    else:
+        producto = (
+            productos_por_codigo[producto_elegido]
+            if quiere_producto
+            else None
+        )
+
+        st.session_state["resumen_preferencias"] = {
+            "presupuesto": presupuesto,
+            "intereses": list(intereses),
+            "ocasion": ocasion,
+            "tipo_regalo": tipo_regalo,
+            "producto_previo": producto_previo,
+            "producto_codigo": (
+                producto_elegido if quiere_producto else None
+            ),
+            "producto_nombre": (
+                producto["description"] if producto else None
+            ),
+            "producto_precio": (
+                float(producto["price"]) if producto else None
+            ),
+            "precio_minimo": precio_minimo,
+            "precio_maximo": precio_maximo,
+        }
+
+
+# 11. Mostrar el resumen guardado.
+if "resumen_preferencias" in st.session_state:
+    resumen = st.session_state["resumen_preferencias"]
+
+    st.divider()
+    st.success("¡Listo! Este es el resumen de tus preferencias.")
+
+    st.write("**Presupuesto:**", resumen["presupuesto"])
+    st.write("**Intereses:**", ", ".join(resumen["intereses"]))
+    st.write("**Ocasión:**", resumen["ocasion"])
+    st.write("**Tipo de regalo:**", resumen["tipo_regalo"])
+
+    if resumen.get("producto_nombre"):
+        st.write(
+            "**Producto de referencia:**",
+            resumen["producto_nombre"],
+        )
+
+        if resumen.get("producto_precio") is not None:
+            st.write(
+                "**Precio del producto:**",
+                f'£{resumen["producto_precio"]:.2f}',
+            )
+
+        st.write(
+            "**Código del producto:**",
+            resumen.get("producto_codigo"),
+        )
+
+    else:
+        st.write(
+            "**Producto de referencia:**",
+            "Sin producto seleccionado. Necesito ideas.",
+        )
+
+    if personalizar and destinatario.strip():
+        st.write("**Para quién:**", destinatario)
+
+    st.caption(
+        "Este resumen corresponde al último envío. "
+        "Si cambiás tus preferencias, volvé a presionar "
+        "Ver mis preferencias."
+    )
+
+    st.info(
+        "Todavía no se generan recomendaciones. "
+        "Ya podés elegir un producto del catálogo; "
+        "el próximo paso es conectar el modelo."
+    )
+
 st.caption("Presente Analytics · Proyecto Final Henry")
