@@ -358,9 +358,7 @@ Se distinguirán la evaluación del modelo sobre compras históricas y las prueb
 
 **Pendientes para cerrar el plan:**
 
-- Acordar la definición y el cálculo de diversidad.
-- Confirmar los datos y períodos de la simulación de monitoreo.
-- Confirmar qué controles implementará el script y cuáles se verificarán mediante pruebas de la aplicación.
+- Acordar con Ezequiel la definición y el cálculo de diversidad.
 
 #### a. Referencia inicial
 
@@ -391,28 +389,33 @@ La cobertura y la diversidad se analizarán junto con las métricas de acierto: 
 
 #### c. Frecuencia y datos de evaluación
 
-Durante el sprint 2 se propone ejecutar una prueba del proceso de monitoreo antes del cierre y conservar evidencia de su funcionamiento.
+El script `src/models/monitoreo.py`, implementado en el PR #17, realiza una simulación mensual de monitoreo con los datos históricos disponibles.
 
-Como el proyecto utiliza un dataset histórico cerrado, las evaluaciones sobre períodos ya disponibles se identificarán como simulaciones de monitoreo. Repetir la evaluación sobre el mismo test permitirá comprobar la reproducibilidad, pero no aportará evidencia de desempeño sobre compras nuevas.
+Se simula que el modelo entra en producción el 19/08/2011: se entrena una sola vez con el período de desarrollo y se evalúa sobre las compras posteriores, agrupadas por mes y sin dividir facturas. El modelo permanece fijo durante la evaluación, sin reentrenarse entre períodos.
 
-En una implementación con transacciones nuevas, se propone una revisión mensual, siempre que existan suficientes casos evaluables. Si el volumen resulta insuficiente, se ampliará la ventana y se informará esta limitación.
+Como el proyecto utiliza un dataset histórico cerrado, esta ejecución demuestra el funcionamiento del proceso de monitoreo, pero no constituye una evaluación con transacciones nuevas. Repetirla sobre los mismos datos permite comprobar la reproducibilidad, sin aportar evidencia independiente de desempeño futuro.
 
-El modelo permanecerá fijo durante cada evaluación y se utilizarán compras posteriores a su entrenamiento.
+En una implementación con transacciones nuevas, se propone mantener una revisión mensual, considerando el volumen de casos y la incertidumbre de las métricas para interpretar los resultados.
 
 #### d. Registro y trazabilidad
 
-Se propone que cada ejecución del script registre en MLflow:
+El script implementado en el PR #17 registra cada período mensual en MLflow con los tags `etapa="monitoreo"` y `tipo="simulacion"`.
 
-- Versión del modelo y del código.
-- Período y fuente de los datos evaluados.
-- Modo de evaluación, semilla y cantidad de recomendaciones.
-- Cantidad de casos incluidos y excluidos.
-- Métricas obtenidas y tamaño del catálogo de referencia.
-- Identificación de la corrida como simulación o evaluación con datos nuevos.
+Cada corrida incluye:
 
-Las corridas se identificarán con el tag `etapa="monitoreo"`.
+- Versión del código, identificada mediante el commit de Git.
+- Fuente de los datos, fecha de corte del entrenamiento y mes evaluado.
+- Parámetros del modelo, semilla y cantidad de recomendaciones.
+- Cantidad de casos evaluados y facturas excluidas de la evaluación.
+- Hit Rate@5, NDCG@5 y cobertura del catálogo.
+- Hit Rate@5 del baseline sobre los mismos casos.
+- Porcentaje de productos nuevos y de facturas evaluables.
+- Límite superior del intervalo de confianza del 95 % del Hit Rate@5.
+- Referencia de validación utilizada y estado de la alerta.
 
-Las métricas del modelo sin filtros y las pruebas del resultado final de la aplicación se presentarán por separado.
+La configuración del monitoreo utiliza el modo ancla. La versión del código permite consultar los criterios de construcción de casos y cálculo de las métricas utilizados en cada ejecución.
+
+Las pruebas del resultado final de la aplicación, como el cumplimiento del presupuesto, la ausencia de duplicados y las explicaciones de las recomendaciones, se documentarán por separado de las métricas del modelo.
 
 #### e. Criterios de revisión y acciones
 
@@ -420,8 +423,7 @@ Una caída en Hit Rate@5 o NDCG@5 motivará una revisión del período evaluado,
 
 También se analizarán reducciones de cobertura, concentración de recomendaciones y mayor frecuencia de consultas sin resultados.
 
-Como referencia inicial de alerta se utilizará el Hit Rate@5 medio de item-item en validación cruzada temporal (9,4 %, modo ancla). Se marcará un período cuando el límite superior del intervalo de confianza del 95 % de su Hit Rate@5 quede por debajo de esa referencia, según el cálculo
-implementado en `src/models/monitoreo.py`.
+Como referencia inicial de alerta se utilizará el Hit Rate@5 medio de item-item en validación cruzada temporal (9,4 %, modo ancla). Se marcará un período cuando el límite superior del intervalo de confianza del 95 % de su Hit Rate@5 quede por debajo de esa referencia, según el cálculo implementado en `src/models/monitoreo.py`.
 
 Esta señal motivará una revisión de los datos, el volumen de casos y los cambios en el catálogo. Se utilizará como criterio inicial de revisión, sujeto a seguimiento, y no implicará un reentrenamiento automático.
 
