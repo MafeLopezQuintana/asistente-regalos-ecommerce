@@ -374,7 +374,7 @@ Se conservarán como referencia los resultados de la evaluación final en modo a
 | Casos evaluados | 7.190 |
 | Diversidad | Pendiente de definición y cálculo |
 
-Estos valores describen el desempeño sobre el período histórico evaluado. Para compararlos con futuras evaluaciones se deberán documentar el modo de evaluación, la cantidad de recomendaciones, la construcción de casos y el catálogo utilizado como denominador de cobertura.
+Estos valores describen el desempeño del modelo sobre el test final y se conservan como referencia descriptiva. Para la regla de alerta del monitoreo se utilizará el Hit Rate@5 medio de validación cruzada temporal (9,4 %), según lo detallado en el punto e. Para asegurar la comparabilidad entre evaluaciones, se deberán documentar el modo de evaluación, la cantidad de recomendaciones, la construcción de los casos y el catálogo utilizado como denominador de cobertura.
 
 #### b. Controles propuestos
 
@@ -420,7 +420,10 @@ Una caída en Hit Rate@5 o NDCG@5 motivará una revisión del período evaluado,
 
 También se analizarán reducciones de cobertura, concentración de recomendaciones y mayor frecuencia de consultas sin resultados.
 
-En esta etapa no se fija un umbral numérico de alerta, porque todavía no se dispone de una serie de monitoreo que permita distinguir la variación habitual de una degradación persistente.
+Como referencia inicial de alerta se utilizará el Hit Rate@5 medio de item-item en validación cruzada temporal (9,4 %, modo ancla). Se marcará un período cuando el límite superior del intervalo de confianza del 95 % de su Hit Rate@5 quede por debajo de esa referencia, según el cálculo
+implementado en `src/models/monitoreo.py`.
+
+Esta señal motivará una revisión de los datos, el volumen de casos y los cambios en el catálogo. Se utilizará como criterio inicial de revisión, sujeto a seguimiento, y no implicará un reentrenamiento automático.
 
 Los incumplimientos de reglas del producto, como superar el presupuesto o recomendar códigos inexistentes en el catálogo, se tratarán como errores de funcionamiento.
 
@@ -499,20 +502,7 @@ Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://1
 
 ### 7.3 Monitoreo
 
-El protocolo propuesto se describe en la sección 5, en “Plan de monitoreo — propuesta para revisión”. Allí se detallan las métricas, los criterios de interpretación y las responsabilidades.
-
-Para el cierre del sprint 2 se prevé implementar un script que:
-
-- Cargue el modelo elegido y los datos del período a evaluar.
-- Construya los casos con los mismos criterios documentados en la evaluación original.
-- Reevalúe el modelo mediante `evaluar()` de `src/models/evaluate.py`.
-- Registre las métricas y la información necesaria para reproducir la ejecución en MLflow, con el tag `etapa="monitoreo"`.
-
-La definición de diversidad, los períodos de evaluación y los controles incluidos en el script están pendientes de acuerdo entre los responsables de validación, modelado y pipeline.
-
-Dado que el proyecto utiliza un dataset histórico cerrado, la ejecución prevista para este sprint se identificará como una simulación de monitoreo. Su objetivo será demostrar el funcionamiento del proceso; no permitirá afirmar que se ha medido el desempeño sobre transacciones nuevas.
-
-Las pruebas de presupuesto, duplicados y explicaciones de las recomendaciones se realizarán sobre la aplicación y se documentarán por separado de las métricas del modelo.
+Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
 
 ## Limitaciones
 
