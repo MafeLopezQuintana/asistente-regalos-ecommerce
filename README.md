@@ -26,11 +26,11 @@ Marco Scrum y metodología CRISP-DM. Los roles son formales, para la documentaci
 
 | Integrante | Rol formal | Aporte adicional | Frente técnico | LinkedIn |
 | --- | --- | --- | --- | --- |
-| Franco Correa | Product Owner | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
-| Ma Fernanda López Quintana | Scrum Master | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
-| Cristian Durán | Liderazgo técnico (Data Team) | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
+| Franco Correa | Liderazgo técnico (Data Team) | Visualización y dashboards | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/franco-correa-a6060624a/) |
+| Ma Fernanda López Quintana | Project Manager | Visualización y dashboards | Demo en Streamlit y README | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mar%C3%ADa-fernanda-l%C3%B3pez-quintana/) |
+| Cristian Durán | Business Intelligence | Visualización | EDA y Power BI | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/cristian-duran-programacion/) |
 | Ezequiel Irianni | Liderazgo técnico (Data Team) | Documentación y Git | Modelado | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ezequielirianni/) |
-| Mauricio Melgarejo | Liderazgo técnico (Data Team) | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
+| Mauricio Melgarejo | Data Engineer | Documentación y Git | Ingeniería de datos | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mauricio-daniel-melgarejo-amaro-482596105/) |
 
 ## Cómo correr el proyecto
 
@@ -376,18 +376,48 @@ El test cubre parte de la temporada previa a Navidad de 2011, hasta el 9 de dici
 tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La estacionalidad es una
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
+
 ## 6. Demo en Streamlit
 
-Se desarrolló y desplegó una primera versión funcional de la interfaz del
-Asistente de Regalos en Streamlit.
+La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usuario como primer paso para encontrar un regalo.
 
-🎁 **Demo pública:** https://quele-regalo.streamlit.app
+🎁 **App pública:** [Abrir ¿Qué le regalo?](https://quele-regalo.streamlit.app)
 
-Actualmente, la aplicación permite completar las preferencias del usuario,
-seleccionar un rango de presupuesto y visualizar la experiencia propuesta.
+### Funcionalidades disponibles
 
-La integración con el catálogo de productos y el modelo de recomendación
-se incorporará en la siguiente etapa del proyecto.
+- Selección del presupuesto total para un regalo o combo:
+  - De £0 a £2.
+  - De £2 a £5.
+  - De £5 a £15.
+  - De £15 a £30.
+  - Más de £30.
+- Selección de uno o varios intereses, o la opción «¡Sorprendeme!».
+- Elección de la ocasión y del formato: regalo individual, combo o ambas opciones.
+- Registro de si el usuario quiere elegir un producto de referencia.
+- Resumen de las preferencias al enviar el formulario.
+- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
+- Vista previa de la tarjeta y conservación del resumen mientras se personaliza.
+
+Los precios se expresan en **libras esterlinas (£)**, de acuerdo con el catálogo de origen.
+
+### Actualización pendiente de integración
+
+Se desarrolló y probó manualmente en Streamlit local un selector de productos reales del catálogo. El cambio está presentado en un Pull Request desde la rama `streamlit-demo`.
+
+Incluye:
+
+- Búsqueda y selección de un producto de referencia.
+- Visualización de su nombre, precio y código en el resumen.
+- Validaciones para evitar contradicciones entre la respuesta del usuario y el producto seleccionado.
+
+### Próximo paso
+
+Conectar la interfaz con el modelo de recomendación para mostrar productos y combos dentro del presupuesto total.
+
+**Actualmente, la app registra preferencias; todavía no genera recomendaciones.**
+
+**Código de la interfaz:** [`app.py`](app.py)
+
 
 ## 7. Pipeline reproducible y monitoreo
 
@@ -436,6 +466,15 @@ Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://1
 
 Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
 
+
 ## Limitaciones
 
-Pendiente de completar: qué no cubre este prototipo.
+Este proyecto es un prototipo académico desarrollado para el Proyecto Final de Henry.
+
+- **Datos históricos:** utiliza transacciones de Online Retail II de 2009 a 2011, con foco en Reino Unido. No representa un catálogo comercial actualizado.
+- **Precios de referencia:** los importes están expresados en libras esterlinas (£). No se consultan precios actuales, stock, costos de envío ni conversiones de moneda.
+- **Alcance de la app:** registra preferencias, muestra su resumen y permite personalizar una tarjeta. Todavía no genera recomendaciones ni combos.
+- **Preferencias y modelo:** registrar intereses, ocasión y presupuesto no implica que el modelo ya utilice esas respuestas.
+- **Interpretación de las compras:** que dos productos se compren juntos no garantiza que sean adecuados como regalo ni que reflejen los gustos del destinatario.
+- **Evaluación offline:** las métricas se calculan con transacciones históricas. No miden satisfacción ni demuestran un aumento real de ventas.
+- **Sin operación comercial:** la app no procesa compras, pagos ni envíos, y tampoco envía la tarjeta personalizada.
