@@ -56,16 +56,22 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
-   **Generar el catálogo de la app** (necesita el paso anterior):
+**Generar el catálogo de la app** (necesita el paso anterior):
 
 ```bash
-   python -m src.data.catalogo_app
+python -m src.data.catalogo_app
 ```
 
 **Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
 
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+**Correr el monitoreo** (simulación mes a mes, necesita `data/processed/online_retail_modelo.parquet`; las corridas quedan en MLflow con `etapa="monitoreo"`):
+
+```bash
+python -m src.models.monitoreo
 ```
 
 **Correr los tests:**
@@ -434,7 +440,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 84 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -442,6 +448,7 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
+| `tests/test_monitoreo.py` | 8 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, alerta de referencia, facturas excluidas y registro en MLflow |
 
 Decisiones tomadas:
 
@@ -464,7 +471,27 @@ Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://1
 
 ### 7.3 Monitoreo
 
-Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
+`src/models/monitoreo.py` simula que el modelo elegido (item-item, `min_facturas=5`, tope de 200 productos por factura) entra en producción el día del corte temporal (19/08/2011): se entrena una sola vez con el período de desarrollo y se reevalúa mes a mes, **sin reentrenar**, con la misma `evaluar()` de `src/models/evaluate.py`. Como el dataset es histórico, es una **simulación de monitoreo**: cada mes queda en MLflow con `etapa="monitoreo"` y `tipo="simulacion"`, junto con la versión del código, la fuente de los datos y las facturas excluidas. El protocolo para interpretar los resultados está en la sección 5 (Plan de monitoreo).
+
+```bash
+python -m src.models.monitoreo
+```
+
+Por cada mes se registra Hit Rate@5, NDCG@5, cobertura, el Hit Rate@5 del baseline sobre los mismos casos y el **% de productos nuevos** (productos vendidos en el mes que el modelo nunca vio al entrenar).
+
+**Alerta de referencia:** el mes se marca si su Hit Rate@5 queda por debajo de la referencia de validación (9,4%) incluso tomando el límite superior de su intervalo de confianza del 95%. Así, un mes con pocos casos no dispara la alerta solo por azar. Es una referencia para revisar el período, no un umbral definitivo.
+
+| Mes | Casos | Hit Rate@5 | Baseline | IC 95% superior | Productos nuevos | Alerta |
+|---|---|---|---|---|---|---|
+| 2011-08 (desde el 19) | 471 | 9,1% | 1,5% | 11,7% | 0,6% | No |
+| 2011-09 | 1.692 | 10,4% | 2,2% | 11,9% | 4,6% | No |
+| 2011-10 | 1.784 | 7,1% | 1,9% | 8,3% | 8,2% | **Sí** |
+| 2011-11 | 2.500 | 8,0% | 2,0% | 9,1% | 9,0% | **Sí** |
+| 2011-12 (hasta el 9) | 743 | 7,7% | 1,9% | 9,6% | 9,4% | No |
+
+En octubre y noviembre el Hit Rate cae por debajo de lo esperado y, en esos mismos meses, crece la proporción de productos que el modelo no conoce. Coincide con la temporada previa a Navidad, cuando cambia el catálogo. No demuestra la causa, pero es la señal que se usaría para decidir reentrenar. En diciembre el valor también es bajo, pero con pocos casos el intervalo no permite confirmarlo. En todos los meses el modelo se mantiene unas 4 veces por encima del baseline.
+
+**Tests:** `tests/test_monitoreo.py` (8): separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, alerta de referencia, facturas excluidas y registro en MLflow con una base temporal.
 
 
 ## Limitaciones
