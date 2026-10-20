@@ -22,6 +22,7 @@ Uso, desde la raíz del repo:
     python -m src.models.asistente
 """
 import pickle
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -176,8 +177,9 @@ def buscar_ideas_regalo(resumen, catalogo, modelo_final, k=5):
     Primero van los productos que más se compran con el producto de referencia
     (fuente "co-compra"); si no hay referencia o no alcanzan, se completa con
     los más vendidos que cumplen los filtros (fuente "popularidad"). Se saltean
-    las variantes del producto de referencia (el mismo producto en otro color). Devuelve
-    hasta k filas con COLUMNAS_SALIDA; vacío si nada entra en el presupuesto.
+    las variantes (el mismo producto en otro color o tamaño) de la referencia y
+    de las ideas ya elegidas. Devuelve hasta k filas con COLUMNAS_SALIDA; vacío
+    si nada entra en el presupuesto.
     """
     candidatos = _filtrar_catalogo(catalogo, resumen).set_index("stock_code")
     referencia = resumen.get("producto_codigo")
@@ -188,8 +190,13 @@ def buscar_ideas_regalo(resumen, catalogo, modelo_final, k=5):
     def agregar(codigo, motivo, fuente):
         if codigo in elegidos or codigo not in candidatos.index or len(filas) >= k:
             return
-        # El mismo producto en otro color no es una idea nueva (ej.: WHITE / RED HANGING HEART)
-        if referencia and _es_variante(candidatos.at[codigo, "description"], nombre):
+        # El mismo producto en otro color o tamaño no es una idea nueva, ni respecto de
+        # la referencia (WHITE / RED HANGING HEART) ni de otra idea ya elegida
+        # (HEART OF WICKER LARGE / SMALL)
+        descripcion = candidatos.at[codigo, "description"]
+        if referencia and _es_variante(descripcion, nombre):
+            return
+        if any(_es_variante(descripcion, f["description"]) for f in filas):
             return
         producto = candidatos.loc[codigo]
         filas.append({"stock_code": codigo, "description": producto["description"],
@@ -237,9 +244,14 @@ def _par(pares, a, b):
     return pares.get((a, b)) or pares.get((b, a)) or (0.0, 0)
 
 
+def _palabras(descripcion):
+    """Palabras de una descripción, sin signos de puntuación ("GLASS." = "GLASS")."""
+    return set(re.findall(r"[A-Z0-9]+(?:-[A-Z0-9]+)*", str(descripcion).upper()))
+
+
 def _es_variante(desc_a, desc_b, umbral=UMBRAL_VARIANTE):
     """True si las descripciones comparten tantas palabras que son el mismo producto."""
-    a, b = set(str(desc_a).upper().split()), set(str(desc_b).upper().split())
+    a, b = _palabras(desc_a), _palabras(desc_b)
     return bool(a | b) and len(a & b) / len(a | b) >= umbral
 
 
@@ -252,9 +264,9 @@ def armar_combos(resumen, catalogo, modelo_final, n_combos=3,
     uno el candidato que más se compra con los ya elegidos, siempre que el total
     no supere el máximo y no sea una variante de otro producto del combo. Si se
     acaban los vecinos, completa con los más vendidos. Se queda con los combos
-    de 2 o más productos cuyo total cae dentro del rango; si ninguno llega al
-    mínimo, devuelve los más cercanos (desde la mitad del mínimo y nunca por
-    encima del máximo). Los combos no comparten productos ni arrancan de
+    de 2 o más productos cuyo total cae dentro del rango; si no alcanzan para
+    n_combos, completa con los más cercanos (desde la mitad del mínimo y nunca
+    por encima del máximo; la app los marca como "por debajo del mínimo"). Los combos no comparten productos ni arrancan de
     variantes del mismo producto.
 
     Devuelve una fila por producto con COLUMNAS_COMBOS (vacío si no se pudo
@@ -330,9 +342,10 @@ def armar_combos(resumen, catalogo, modelo_final, n_combos=3,
                 cercanos.append(combo)
             usados |= {f["stock_code"] for f in combo}
 
-    # Si ningún combo llega al mínimo del rango, se devuelven los más cercanos
+    # Si no se llega a n_combos dentro del rango, se completa con los más cercanos
     # (al menos la mitad del mínimo y nunca por encima del máximo).
-    combos = combos or sorted(cercanos, key=lambda c: -sum(f["price"] for f in c))[:n_combos]
+    cercanos = sorted(cercanos, key=lambda c: -sum(f["price"] for f in c))
+    combos = (combos + cercanos)[:n_combos]
     filas = []
     for numero, combo in enumerate(combos, start=1):
         total = round(sum(f["price"] for f in combo), 2)

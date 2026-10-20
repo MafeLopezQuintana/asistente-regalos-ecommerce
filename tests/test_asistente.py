@@ -99,6 +99,14 @@ def test_no_sugiere_variantes_de_la_referencia(modelo, catalogo):
     assert ideas["stock_code"].iloc[0] == "C"
 
 
+def test_no_sugiere_dos_variantes_entre_si(modelo, catalogo):
+    catalogo = catalogo.copy()
+    catalogo.loc[catalogo["stock_code"] == "C", "description"] = "PORTAVELAS CHICO"
+    ideas = buscar_ideas_regalo(resumen(producto_codigo="A"), catalogo, modelo)
+    assert "B" in set(ideas["stock_code"])                  # PORTAVELAS
+    assert "C" not in set(ideas["stock_code"])              # PORTAVELAS CHICO: variante de B
+
+
 def test_no_repite_ni_incluye_la_referencia(modelo, catalogo):
     ideas = buscar_ideas_regalo(resumen(producto_codigo="A"), catalogo, modelo, k=10)
     assert "A" not in set(ideas["stock_code"])
@@ -175,6 +183,8 @@ def test_combos_de_al_menos_dos_productos_sin_repetir(modelo, catalogo):
 def test_combo_no_junta_variantes_del_mismo_producto():
     assert _es_variante("WHITE HANGING HEART T-LIGHT HOLDER", "RED HANGING HEART T-LIGHT HOLDER")
     assert not _es_variante("WHITE HANGING HEART T-LIGHT HOLDER", "JUMBO BAG RED RETROSPOT")
+    # La puntuación no cuenta: "GLASS." y "GLASS" son la misma palabra
+    assert _es_variante("COLOUR GLASS. STAR T-LIGHT HOLDER", "GLASS STAR FROSTED T-LIGHT HOLDER")
 
 
 def test_combos_no_comparten_productos(modelo, catalogo):
@@ -187,6 +197,14 @@ def test_si_no_llega_al_minimo_devuelve_lo_mas_cercano_sin_pasarse(modelo, catal
                           catalogo, modelo)
     assert not combos.empty                               # A + B + C = £8: no llega a £15
     assert (combos.groupby("combo")["price"].sum() <= 30).all()
+
+
+def test_completa_con_combos_cercanos_si_faltan(modelo, catalogo):
+    # De £8 a £15: algunos combos llegan al mínimo y otros no; se devuelven hasta 3 igual
+    combos = armar_combos(resumen(precio_minimo=8, precio_maximo=15), catalogo, modelo)
+    totales = combos.groupby("combo")["price"].sum()
+    assert (totales <= 15).all() and (totales >= 4).all()
+    assert totales.iloc[0] >= 8                           # primero los que están dentro del rango
 
 
 def test_combos_respetan_intereses(modelo, catalogo):
