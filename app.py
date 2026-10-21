@@ -441,7 +441,7 @@ st.write(
 )
 st.caption(
     "Ya podés explorar el catálogo y elegir un producto de referencia. "
-    "Las recomendaciones se incorporarán en la próxima etapa."
+    "Completá tus preferencias para descubrir regalos y combos dentro de tu presupuesto."
 )
 
 with st.form("cuestionario_regalos"):
