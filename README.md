@@ -74,6 +74,12 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 python -m src.models.monitoreo
 ```
 
+**Generar el modelo final de la app** (necesita `data/processed/online_retail_modelo.parquet`; entrena el item-item con todos los datos y genera `models/modelo_final.pkl`):
+
+```bash
+python -m src.models.asistente
+```
+
 **Correr los tests:**
 
 ```bash
@@ -325,7 +331,38 @@ Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo v
 
 Cobertura = productos distintos que el modelo recomendó alguna vez, sobre los 4.456 productos que existen en el período de desarrollo (no sobre los 4.725 del dataset completo).
 
+**Diversidad intra-lista@5** (1 − similitud promedio entre los pares de las 5 recomendaciones, medida para los tres modelos con la misma regla: la co-compra del item-item entrenado con el desarrollo):
+
+| Modelo | Hit Rate@5 | Diversidad@5 |
+|---|---|---|
+| **Item-item** | **8,4%** | 0,780 |
+| SVD | 7,0% | 0,805 |
+| Popularidad | 1,8% | 0,822 |
+
+Como era esperable, el item-item es el menos diverso, porque la referencia es la misma información que usa para recomendar. Pero la diferencia es chica: acierta 4,6 veces más que el baseline perdiendo solo 0,04 de diversidad. La ganancia en acierto no viene de recomendar todo parecido. En la app la diversidad es algo mayor, porque `buscar_ideas_regalo` además saltea las variantes del producto de referencia (`reports/diversidad_test.csv`, notebook 04).
+
+**Mayoristas:** entrenar sin ellos no mejora las recomendaciones para compras no mayoristas: Hit Rate@5 de 10,6% contra 10,5% entrenando con todos, sobre 4.115 casos (una diferencia muy por debajo del margen de error, que es de ±0,9 puntos). Con la popularidad, sacarlos incluso empeora (2,9% contra 3,2%). Por eso el modelo final se entrena con todos los datos. La comparación se hizo dentro del desarrollo, para no usar el test (`reports/decision_mayoristas.csv`, notebook 04).
+
 ![Comparación final de modelos](reports/figures/04_comparacion_final.png)
+
+### Modelo final y funciones de la app
+
+Elegido el modelo, `src/models/asistente.py` reentrena el item-item (`min_facturas=5`, tope de 200 productos por factura) con **todos los datos** (la evaluación ya se hizo sobre el corte temporal) y lo congela en `models/modelo_final.pkl`. El archivo no guarda el objeto entero sino lo que usa la app: los **20 productos que más se compran con cada producto** (con su similitud y en cuántos pedidos se compraron juntos), el **ranking de popularidad** y los parámetros y métricas de referencia. Pesa unos 4 MB y la app lo lee sin depender de las clases de `train.py`.
+
+Las dos funciones reciben las respuestas del cuestionario tal como las guarda la app (`resumen_preferencias`):
+
+- **`buscar_ideas_regalo(resumen, catalogo, modelo_final, k=5)`**: hasta 5 regalos. Primero los que más se compran con el producto de referencia (fuente `co-compra`, motivo *"Se compra junto con … (en N pedidos)"*); si no hay referencia o no alcanzan, los más vendidos que cumplen los filtros (fuente `popularidad`). No sugiere variantes (el mismo producto en otro color o tamaño) de la referencia ni de otra idea ya elegida.
+- **`armar_combos(resumen, catalogo, modelo_final, n_combos=3)`**: hasta 3 combos de 3 productos que se compran juntos, cuyo total entra en el rango de presupuesto. Cada combo arranca de un producto distinto (la referencia y después las ideas sugeridas) y suma de a uno el que más se compra con los ya elegidos. Los combos no comparten productos ni juntan variantes del mismo producto (descripciones con la mitad o más de las palabras en común, como un mismo portavelas en dos colores).
+
+Ambas cruzan con `models/catalogo_app.parquet`, así que los productos excluidos del catálogo nunca aparecen.
+
+Supuestos de negocio:
+- **Precio mínimo de £0,50:** por debajo hay precios unitarios de productos que se venden en packs (lápices a £0,04).
+- **Ocasión:** el dataset no la registra. "Navidad / Fiestas" suma el interés *Fiestas y celebraciones* a los elegidos; las demás ocasiones no filtran.
+- **¡Sorprendeme!** no filtra por interés.
+- **Combos y rango de presupuesto:** si no se llega a 3 combos dentro del rango (por ejemplo, £15 con productos de £2), se completa con los más cercanos, desde la mitad del mínimo y nunca por encima del máximo; la app los marca como "por debajo del mínimo".
+
+**Tests:** `tests/test_asistente.py` (27) y `tests/test_diversidad.py` (7).
 
 ## 5. Justificación del modelo y plan de validación
 
@@ -440,7 +477,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 84 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 118 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -449,6 +486,8 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
 | `tests/test_monitoreo.py` | 8 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, alerta de referencia, facturas excluidas y registro en MLflow |
+| `tests/test_asistente.py` | 27 | Modelo final (vecinos, pedidos en común, guardado), sugerencias y combos con presupuesto, intereses, ocasión, variantes y motivo |
+| `tests/test_diversidad.py` | 7 | Diversidad intra-lista (valores extremos e intermedios, productos fuera de la referencia) y que `evaluar()` solo la sume si se pide |
 
 Decisiones tomadas:
 
