@@ -44,6 +44,13 @@ def test_intervalo_mas_angosto_con_mas_casos():
     # Mismo Hit Rate: con más casos el límite superior queda más cerca del valor
     assert limite_superior_ic95(0.08, 2500) < limite_superior_ic95(0.08, 500)
     assert limite_superior_ic95(0.08, 500) > 0.08
+    
+
+def test_intervalo_wilson_con_cero_aciertos():
+    # Con pocos casos y 0 aciertos, el rango no se cierra en 0 (la aproximación
+    # normal daba 0 y disparaba una falsa alarma); y nunca pasa de 1
+    assert limite_superior_ic95(0.0, 10) > 0.2
+    assert limite_superior_ic95(1.0, 10) <= 1.0
 
 
 # --- Monitoreo completo ------------------------------------------------------------

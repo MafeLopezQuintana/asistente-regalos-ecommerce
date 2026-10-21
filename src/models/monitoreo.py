@@ -14,7 +14,7 @@ Por cada mes se mide:
 
 Alerta de referencia: el mes se marca si su Hit Rate@5 está por debajo de
 la referencia de validación (9,4%, sección 5 del README) incluso tomando el
-límite superior de su intervalo de confianza del 95%. Así un mes con pocos
+límite superior de su intervalo de confianza de Wilson del 95%. Así un mes con pocos
 casos no dispara la alerta solo por azar. Es una referencia para revisar,
 no un umbral definitivo (acordado con validación).
 
@@ -61,13 +61,18 @@ def pct_productos_nuevos(df_mes, productos_conocidos, col_producto=COL_PRODUCTO)
     return 100 * len(vendidos - set(productos_conocidos)) / len(vendidos)
 
 
-def limite_superior_ic95(proporcion, n):
-    """Límite superior del intervalo de confianza del 95% de una proporción.
+def limite_superior_ic95(proporcion, n, z=1.96):
+    """Límite superior del intervalo de confianza de Wilson del 95% de una proporción.
 
-    Aproximación normal: p + 1,96 * raíz(p(1-p)/n). Con más casos el intervalo
-    es más angosto, así que un mes chico necesita caer más para dar alerta.
+    Con más casos el intervalo es más angosto, así que un mes chico necesita
+    caer más para dar alerta. Se usa Wilson y no la aproximación normal
+    (p + z * raíz(p(1-p)/n)) porque la normal falla en los extremos: con 0
+    aciertos da un intervalo de ancho cero y dispararía una falsa alarma en
+    un mes con muy pocos casos. Wilson siempre queda entre 0 y 1.
     """
-    return proporcion + 1.96 * np.sqrt(proporcion * (1 - proporcion) / n)
+    centro = proporcion + z**2 / (2 * n)
+    margen = z * np.sqrt(proporcion * (1 - proporcion) / n + z**2 / (4 * n**2))
+    return (centro + margen) / (1 + z**2 / n)
 
 
 def version_codigo():
