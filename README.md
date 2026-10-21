@@ -424,6 +424,8 @@ La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usua
 
 🎁 **App pública:** [Abrir ¿Qué le regalo?](https://quele-regalo.streamlit.app)
 
+📖 **[Manual de usuario](docs/Manual_Usuario_Que_Regalo.pdf)**
+
 ### Funcionalidades disponibles
 
 - Selección del presupuesto total para un regalo o combo:
