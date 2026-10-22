@@ -3,6 +3,11 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from src.models.asistente import (
+    cargar_modelo_final,
+    buscar_ideas_regalo,
+    armar_combos,
+)
 
 
 # 1. Configuración de la página.
@@ -44,6 +49,10 @@ def cargar_catalogo():
     catalogo["stock_code"] = catalogo["stock_code"].astype(str)
 
     return catalogo.sort_values("description").reset_index(drop=True)
+
+@st.cache_resource
+def cargar_modelo():
+    return cargar_modelo_final()
 
 
 def cargar_intereses():
@@ -402,6 +411,13 @@ except FileNotFoundError:
 if catalogo.empty:
     st.error("El catálogo está vacío. Revisá el archivo del catálogo.")
     st.stop()
+try:
+    modelo_final = cargar_modelo()
+except FileNotFoundError:
+    st.error(
+        "No se encontró el modelo en models/modelo_final.pkl."
+    )
+    st.stop()
 
 etiquetas_productos = {
     fila["stock_code"]: (
@@ -425,7 +441,7 @@ st.write(
 )
 st.caption(
     "Ya podés explorar el catálogo y elegir un producto de referencia. "
-    "Las recomendaciones se incorporarán en la próxima etapa."
+    "Completá tus preferencias para descubrir regalos y combos dentro de tu presupuesto."
 )
 
 with st.form("cuestionario_regalos"):
@@ -634,10 +650,76 @@ if "resumen_preferencias" in st.session_state:
         "Ver mis preferencias."
     )
 
-    st.info(
-        "Todavía no se generan recomendaciones. "
-        "Ya podés elegir un producto del catálogo; "
-        "el próximo paso es conectar el modelo."
-    )
+    st.subheader("🎁 Ideas para sorprender")
 
+    mostrar_regalos = resumen["tipo_regalo"] in [
+        "Un solo regalo",
+        "Mostrame ambas opciones",
+    ]
+
+    mostrar_combos = resumen["tipo_regalo"] in [
+        "Un combo de regalos",
+        "Mostrame ambas opciones",
+    ]
+
+    if mostrar_regalos:
+        st.markdown("### Regalos individuales")
+
+        ideas = buscar_ideas_regalo(
+            resumen,
+            catalogo,
+            modelo_final,
+            k=5,
+        )
+
+        if ideas.empty:
+            st.info(
+                "No encontramos regalos con estas preferencias. "
+                "Probá con otro presupuesto o con ¡Sorprendeme!."
+            )
+        else:
+            for _, idea in ideas.iterrows():
+                with st.container(border=True):
+                    st.write(idea["description"])
+                    st.write(f'**Precio:** £{idea["price"]:.2f}')
+                    st.write("**Interés:**", idea["interes"])
+                    st.write("**Por qué aparece:**", idea["motivo"])
+
+    if mostrar_combos:
+        st.markdown("### Combos de regalos")
+
+        combos = armar_combos(
+            resumen,
+            catalogo,
+            modelo_final,
+            n_combos=3,
+        )
+
+        if combos.empty:
+            st.info(
+                "No encontramos combos con estas preferencias. "
+                "Probá ampliar el presupuesto o cambiar los intereses."
+            )
+        else:
+            for numero, productos in combos.groupby("combo"):
+                with st.container(border=True):
+                    st.markdown(f"#### Combo {numero}")
+
+                    for _, producto in productos.iterrows():
+                        st.write(
+                            f'{producto["description"]} '
+                            f'— £{producto["price"]:.2f}'
+                        )
+                        st.caption(producto["motivo"])
+
+                    total = float(productos["total_combo"].iloc[0])
+                    st.write(f"**Total del combo: £{total:.2f}**")
+
+                    if total < resumen["precio_minimo"]:
+                        st.info(
+                            "Esta alternativa cuesta menos que el "
+                            "mínimo del rango elegido y no supera "
+                            "tu presupuesto máximo."
+                        )
+                        
 st.caption("Presente Analytics · Proyecto Final Henry")
