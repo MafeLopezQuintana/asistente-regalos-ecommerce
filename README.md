@@ -81,6 +81,12 @@ python -m src.models.monitoreo
 python -m src.models.asistente
 ```
 
+**Registrar el modelo final en MLflow** (después del paso anterior; guarda `models/modelo_final.pkl` como artefacto, con sus parámetros, el período de datos, las métricas de referencia y la versión del código, con `etapa="modelo_final"`):
+
+```bash
+python -m src.models.registrar_modelo
+```
+
 **Correr los tests:**
 
 ```bash
@@ -129,7 +135,8 @@ asistente-regalos-ecommerce/
 │   │   ├── train.py                # Matriz y modelos (Popularidad, ItemItem, SVD)
 │   │   ├── evaluate.py             # Corte temporal, métricas y comparación
 │   │   ├── asistente.py            # Modelo final, sugerencias y combos para la app
-│   │   └── monitoreo.py            # Monitoreo mensual del modelo (simulación)
+│   │   ├── monitoreo.py            # Monitoreo mensual del modelo (simulación)
+│   │   └── registrar_modelo.py     # Registro del modelo final en MLflow
 │   └── utils/
 │       └── mlflow_utils.py         # Registro común de corridas en MLflow
 ├── tests/
@@ -139,7 +146,8 @@ asistente-regalos-ecommerce/
 │   ├── test_modelos.py
 │   ├── test_asistente.py
 │   ├── test_diversidad.py
-│   └── test_monitoreo.py
+│   ├── test_monitoreo.py
+│   └── test_registrar_modelo.py
 ├── app.py                          # Demo en Streamlit
 ├── portada-regalos.png             # Portada del README
 ├── pytest.ini                      # Configuración de los tests
@@ -485,7 +493,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 119 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 120 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -494,6 +502,7 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
 | `tests/test_monitoreo.py` | 9 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza de Wilson, alerta de referencia, facturas excluidas y registro en MLflow |
+| `tests/test_registrar_modelo.py` | 1 | Registro del modelo final en MLflow (etapa, parámetros, métricas y el `.pkl` como artefacto) con una base temporal |
 | `tests/test_asistente.py` | 27 | Modelo final (vecinos, pedidos en común, guardado), sugerencias y combos con presupuesto, intereses, ocasión, variantes y motivo |
 | `tests/test_diversidad.py` | 7 | Diversidad intra-lista (valores extremos e intermedios, productos fuera de la referencia) y que `evaluar()` solo la sume si se pide |
 
@@ -512,7 +521,7 @@ Decisiones tomadas:
 - **Dónde se guarda:** `mlflow.db` (base SQLite) y `mlartifacts/`, en la raíz del repo sin importar desde qué carpeta se ejecute: la ruta se calcula a partir de la ubicación del archivo, así un notebook y un script escriben en la misma base.
 - **Modelos guardados con `joblib`:** nuestros modelos no son estimadores de scikit-learn, y así se puede guardar cualquier objeto.
 - **No se suben al repo** (están en `.gitignore`): las corridas se regeneran ejecutando el notebook.
-- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) y `monitoreo`, una corrida por mes de la simulación de monitoreo (7.3).
+- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) , `monitoreo` (una corrida por mes de la simulación de monitoreo, 7.3) y `modelo_final` (la versión del modelo que usa la app, con el `.pkl` como artefacto).
 
 Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://127.0.0.1:5000 y elegir la vista **Model training**.
 
