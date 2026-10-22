@@ -1,3 +1,4 @@
+[![CI](https://github.com/MafeLopezQuintana/asistente-regalos-ecommerce/actions/workflows/ci.yml/badge.svg)](https://github.com/MafeLopezQuintana/asistente-regalos-ecommerce/actions/workflows/ci.yml)
 ![Recomendador de regalos: ¿Qué le regalo?](portada-regalos.png)
 
 # Asistente de regalos para e-commerce
@@ -80,6 +81,12 @@ python -m src.models.monitoreo
 python -m src.models.asistente
 ```
 
+**Registrar el modelo final en MLflow** (después del paso anterior; guarda `models/modelo_final.pkl` como artefacto, con sus parámetros, el período de datos, las métricas de referencia y la versión del código, con `etapa="modelo_final"`):
+
+```bash
+python -m src.models.registrar_modelo
+```
+
 **Correr los tests:**
 
 ```bash
@@ -120,18 +127,27 @@ asistente-regalos-ecommerce/
 │   └── comparacion_modelos.csv     # Tabla final de modelos
 ├── src/
 │   ├── data/
-│   │   └── clean.py                # Limpieza → datasets en Parquet
+│   │   ├── clean.py                # Limpieza → datasets en Parquet
+│   │   └── catalogo_app.py         # Catálogo de la app con intereses
 │   ├── features/
 │   │   └── build_features.py       # Categorías de producto
 │   ├── models/
 │   │   ├── train.py                # Matriz y modelos (Popularidad, ItemItem, SVD)
-│   │   └── evaluate.py             # Corte temporal, métricas y comparación
+│   │   ├── evaluate.py             # Corte temporal, métricas y comparación
+│   │   ├── asistente.py            # Modelo final, sugerencias y combos para la app
+│   │   ├── monitoreo.py            # Monitoreo mensual del modelo (simulación)
+│   │   └── registrar_modelo.py     # Registro del modelo final en MLflow
 │   └── utils/
 │       └── mlflow_utils.py         # Registro común de corridas en MLflow
 ├── tests/
 │   ├── test_clean.py
 │   ├── test_build_features.py
-│   └── test_modelos.py
+│   ├── test_catalogo_app.py
+│   ├── test_modelos.py
+│   ├── test_asistente.py
+│   ├── test_diversidad.py
+│   ├── test_monitoreo.py
+│   └── test_registrar_modelo.py
 ├── app.py                          # Demo en Streamlit
 ├── portada-regalos.png             # Portada del README
 ├── pytest.ini                      # Configuración de los tests
@@ -573,7 +589,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 118 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 120 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -581,7 +597,8 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
-| `tests/test_monitoreo.py` | 8 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, alerta de referencia, facturas excluidas y registro en MLflow |
+| `tests/test_monitoreo.py` | 9 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza de Wilson, alerta de referencia, facturas excluidas y registro en MLflow |
+| `tests/test_registrar_modelo.py` | 1 | Registro del modelo final en MLflow (etapa, parámetros, métricas y el `.pkl` como artefacto) con una base temporal |
 | `tests/test_asistente.py` | 27 | Modelo final (vecinos, pedidos en común, guardado), sugerencias y combos con presupuesto, intereses, ocasión, variantes y motivo |
 | `tests/test_diversidad.py` | 7 | Diversidad intra-lista (valores extremos e intermedios, productos fuera de la referencia) y que `evaluar()` solo la sume si se pide |
 
@@ -600,7 +617,7 @@ Decisiones tomadas:
 - **Dónde se guarda:** `mlflow.db` (base SQLite) y `mlartifacts/`, en la raíz del repo sin importar desde qué carpeta se ejecute: la ruta se calcula a partir de la ubicación del archivo, así un notebook y un script escriben en la misma base.
 - **Modelos guardados con `joblib`:** nuestros modelos no son estimadores de scikit-learn, y así se puede guardar cualquier objeto.
 - **No se suben al repo** (están en `.gitignore`): las corridas se regeneran ejecutando el notebook.
-- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) y `monitoreo`, reservada para la reevaluación del modelo (7.3).
+- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) , `monitoreo` (una corrida por mes de la simulación de monitoreo, 7.3) y `modelo_final` (la versión del modelo que usa la app, con el `.pkl` como artefacto).
 
 Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://127.0.0.1:5000 y elegir la vista **Model training**.
 
@@ -614,19 +631,19 @@ python -m src.models.monitoreo
 
 Por cada mes se registra Hit Rate@5, NDCG@5, cobertura, el Hit Rate@5 del baseline sobre los mismos casos y el **% de productos nuevos** (productos vendidos en el mes que el modelo nunca vio al entrenar).
 
-**Alerta de referencia:** el mes se marca si su Hit Rate@5 queda por debajo de la referencia de validación (9,4%) incluso tomando el límite superior de su intervalo de confianza del 95%. Así, un mes con pocos casos no dispara la alerta solo por azar. Es una referencia para revisar el período, no un umbral definitivo.
+**Alerta de referencia:** el mes se marca si su Hit Rate@5 queda por debajo de la referencia de validación (9,4%) incluso tomando el límite superior de su intervalo de confianza de Wilson del 95%. Así, un mes con pocos casos no dispara la alerta solo por azar. Es una referencia para revisar el período, no un umbral definitivo.
 
 | Mes | Casos | Hit Rate@5 | Baseline | IC 95% superior | Productos nuevos | Alerta |
 |---|---|---|---|---|---|---|
-| 2011-08 (desde el 19) | 471 | 9,1% | 1,5% | 11,7% | 0,6% | No |
+| 2011-08 (desde el 19) | 471 | 9,1% | 1,5% | 12,1% | 0,6% | No |
 | 2011-09 | 1.692 | 10,4% | 2,2% | 11,9% | 4,6% | No |
-| 2011-10 | 1.784 | 7,1% | 1,9% | 8,3% | 8,2% | **Sí** |
+| 2011-10 | 1.784 | 7,1% | 1,9% | 8,4% | 8,2% | **Sí** |
 | 2011-11 | 2.500 | 8,0% | 2,0% | 9,1% | 9,0% | **Sí** |
-| 2011-12 (hasta el 9) | 743 | 7,7% | 1,9% | 9,6% | 9,4% | No |
+| 2011-12 (hasta el 9) | 743 | 7,7% | 1,9% | 9,8% | 9,4% | No |
 
 En octubre y noviembre el Hit Rate cae por debajo de lo esperado y, en esos mismos meses, crece la proporción de productos que el modelo no conoce. Coincide con la temporada previa a Navidad, cuando cambia el catálogo. No demuestra la causa, pero es la señal que se usaría para decidir reentrenar. En diciembre el valor también es bajo, pero con pocos casos el intervalo no permite confirmarlo. En todos los meses el modelo se mantiene unas 4 veces por encima del baseline.
 
-**Tests:** `tests/test_monitoreo.py` (8): separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza, alerta de referencia, facturas excluidas y registro en MLflow con una base temporal.
+**Tests:** `tests/test_monitoreo.py` (9): separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza de Wilson (incluido el caso de 0 aciertos), alerta de referencia, facturas excluidas y registro en MLflow con una base temporal.
 
 
 ## Limitaciones
