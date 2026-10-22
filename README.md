@@ -377,15 +377,11 @@ tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La e
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
 
-### Plan de monitoreo — propuesta para revisión
+### Plan de monitoreo
 
 El monitoreo busca detectar cambios en la calidad de las recomendaciones del modelo item-item después de su integración con la aplicación.
 
 Se distinguirán la evaluación del modelo sobre compras históricas y las pruebas de las recomendaciones que recibe el usuario, porque los filtros de presupuesto e intereses pueden modificar los resultados originales del modelo.
-
-**Pendientes para cerrar el plan:**
-
-- Acordar con Ezequiel la definición y el cálculo de diversidad.
 
 #### a. Referencia inicial
 
@@ -397,7 +393,8 @@ Se conservarán como referencia los resultados de la evaluación final en modo a
 | NDCG@5 | 0,059 |
 | Cobertura del catálogo | 61,6 % |
 | Casos evaluados | 7.190 |
-| Diversidad | Pendiente de definición y cálculo |
+| Diversidad intra-lista@5 | 0,780 |
+
 
 Estos valores describen el desempeño del modelo sobre el test final y se conservan como referencia descriptiva. Para la regla de alerta del monitoreo se utilizará el Hit Rate@5 medio de validación cruzada temporal (9,4 %), según lo detallado en el punto e. Para asegurar la comparabilidad entre evaluaciones, se deberán documentar el modo de evaluación, la cantidad de recomendaciones, la construcción de los casos y el catálogo utilizado como denominador de cobertura.
 
@@ -407,7 +404,7 @@ Estos valores describen el desempeño del modelo sobre el test final y se conser
 |---|---|---|
 | Acierto | Hit Rate@5 y NDCG@5 | Detectar si disminuyen los aciertos o empeora su posición. |
 | Alcance | Cobertura del catálogo | Identificar concentración en pocos productos. |
-| Variedad | Diversidad, con definición acordada por el equipo | Evaluar la variedad de las recomendaciones. |
+| Variedad | Diversidad intra-lista@5 (1 − similitud promedio de co-compra entre las 5 recomendaciones). |
 | Calidad de datos | Campos necesarios completos, precios válidos y códigos compatibles con el modelo | Detectar problemas del catálogo. |
 | Funcionamiento de la aplicación | Recomendaciones dentro del presupuesto, sin duplicados y con explicación | Verificar las condiciones del producto. |
 | Casos sin resultados | Frecuencia de consultas sin sugerencias y uso del respaldo de popularidad | Detectar dificultades para atender determinadas consultas. |
