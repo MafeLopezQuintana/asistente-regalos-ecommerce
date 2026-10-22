@@ -422,7 +422,7 @@ posible explicación, pero estas métricas por sí solas no demuestran la causa 
 
 ## 6. Demo en Streamlit
 
-La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usuario como primer paso para encontrar un regalo.
+**¿Qué le regalo?** permite registrar preferencias y descubrir regalos individuales y combos dentro del presupuesto, con sugerencias basadas en el catálogo y en compras históricas.
 
 🎁 **App pública:** [Abrir ¿Qué le regalo?](https://quele-regalo.streamlit.app)
 
@@ -436,33 +436,41 @@ La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usua
   - De £5 a £15.
   - De £15 a £30.
   - Más de £30.
-- Selección de uno o varios intereses, o la opción «¡Sorprendeme!».
+- Selección de uno o varios intereses, o solo «¡Sorprendeme!».
 - Elección de la ocasión y del formato: regalo individual, combo o ambas opciones.
-- Registro de si el usuario quiere elegir un producto de referencia.
-- Resumen de las preferencias al enviar el formulario.
-- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
-- Vista previa de la tarjeta y conservación del resumen mientras se personaliza.
-
-Los precios se expresan en **libras esterlinas (£)**, de acuerdo con el catálogo de origen.
-
-### Actualización pendiente de integración
-
-Se desarrolló y probó manualmente en Streamlit local un selector de productos reales del catálogo. El cambio está presentado en un Pull Request desde la rama `streamlit-demo`.
-
-Incluye:
-
-- Búsqueda y selección de un producto de referencia.
+- Búsqueda y selección opcional de un producto de referencia del catálogo.
 - Visualización de su nombre, precio y código en el resumen.
-- Validaciones para evitar contradicciones entre la respuesta del usuario y el producto seleccionado.
+- Validaciones para evitar respuestas contradictorias.
+- Resumen de las preferencias al enviar el formulario.
+- Hasta cinco ideas de regalos individuales, con precio, interés y motivo de recomendación.
+- Hasta tres combos, con sus productos, motivos y precio total.
+- Avisos cuando no se encuentran opciones, con sugerencias para ajustar la búsqueda.
+- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
+- Vista previa de la tarjeta y conservación de las preferencias y los resultados mientras se personaliza.
 
-### Próximo paso
+### Cómo usarla
 
-Conectar la interfaz con el modelo de recomendación para mostrar productos y combos dentro del presupuesto total.
+1. Elegí el presupuesto total.
+2. Completá los intereses, la ocasión y el formato del regalo.
+3. Si ya viste un producto que podría gustarle, seleccionalo como referencia.
+4. Tocá «Ver mis preferencias» y bajá hasta «Ideas para sorprender».
+5. Explorá los regalos y combos, y agregá una tarjeta si querés.
 
-**Actualmente, la app registra preferencias; todavía no genera recomendaciones.**
+Si cambiás tus preferencias, volvé a tocar «Ver mis preferencias» para actualizar los resultados.
+
+### Cómo se generan las sugerencias
+
+El presupuesto y los intereses filtran los productos del catálogo. «¡Sorprendeme!» permite explorar sin filtrar por interés. Con un producto de referencia, se priorizan sus complementos según el modelo item-item; si no hay referencia o no alcanzan los candidatos, se completa con los productos más populares que cumplen los filtros.
+
+Los combos combinan relaciones de co-compra y popularidad, evitando repetir productos entre combos y juntar variantes del mismo producto. La ocasión «Navidad / Fiestas» suma el interés Fiestas y celebraciones a los elegidos; las demás ocasiones no modifican el filtro.
+
+### Precios y alcance
+
+Los precios se expresan en **libras esterlinas (£)** y corresponden al catálogo histórico de origen. En los combos, el presupuesto máximo se aplica al conjunto completo; pueden mostrarse alternativas por debajo del mínimo del rango, con un aviso.
+
+Es una demo académica: no consulta stock ni precios actuales, no procesa compras, pagos o envíos y no envía la tarjeta personalizada.
 
 **Código de la interfaz:** [`app.py`](app.py)
-
 
 ## 7. Pipeline reproducible y monitoreo
 
@@ -541,8 +549,9 @@ Este proyecto es un prototipo académico desarrollado para el Proyecto Final de 
 
 - **Datos históricos:** utiliza transacciones de Online Retail II de 2009 a 2011, con foco en Reino Unido. No representa un catálogo comercial actualizado.
 - **Precios de referencia:** los importes están expresados en libras esterlinas (£). No se consultan precios actuales, stock, costos de envío ni conversiones de moneda.
-- **Alcance de la app:** registra preferencias, muestra su resumen y permite personalizar una tarjeta. Todavía no genera recomendaciones ni combos.
-- **Preferencias y modelo:** registrar intereses, ocasión y presupuesto no implica que el modelo ya utilice esas respuestas.
+- **Alcance de la app:** genera ideas de regalos individuales y combos, muestra sus precios y motivos de recomendación y permite personalizar una tarjeta. La cantidad de resultados depende de los productos que cumplen los filtros.
+- **Preferencias y modelo:** el presupuesto y los intereses se aplican como filtros; el producto de referencia guía la búsqueda de complementos por co-compra, con popularidad como respaldo. La ocasión solo modifica el filtro para «Navidad / Fiestas», que suma Fiestas y celebraciones cuando se filtra por intereses. Las demás ocasiones se registran, pero no cambian las sugerencias. El formato determina si se muestran regalos, combos o ambas opciones.
+- **Presupuesto de combos:** el total nunca supera el máximo elegido. Si no hay suficientes opciones dentro del rango, pueden mostrarse combos por debajo del mínimo, desde la mitad de ese mínimo, con un aviso. El rango «Más de £30» tiene un máximo interno de £1.000.
 - **Interpretación de las compras:** que dos productos se compren juntos no garantiza que sean adecuados como regalo ni que reflejen los gustos del destinatario.
 - **Evaluación offline:** las métricas se calculan con transacciones históricas. No miden satisfacción ni demuestran un aumento real de ventas.
 - **Sin operación comercial:** la app no procesa compras, pagos ni envíos, y tampoco envía la tarjeta personalizada.
