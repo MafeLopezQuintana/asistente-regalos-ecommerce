@@ -420,6 +420,100 @@ tienen menor Hit Rate@5 que en validación; el baseline cae de 3,2% a 1,8%. La e
 posible explicación, pero estas métricas por sí solas no demuestran la causa de la caída.
 
 
+### Plan de monitoreo
+
+El monitoreo busca detectar cambios en la calidad de las recomendaciones del modelo item-item después de su integración con la aplicación.
+
+Se distinguirán la evaluación del modelo sobre compras históricas y las pruebas de las recomendaciones que recibe el usuario, porque los filtros de presupuesto e intereses pueden modificar los resultados originales del modelo.
+
+#### a. Referencia inicial
+
+Se conservarán como referencia los resultados de la evaluación final en modo ancla:
+
+| Indicador | Resultado de referencia |
+|---|---:|
+| Hit Rate@5 | 8,4 % |
+| NDCG@5 | 0,059 |
+| Cobertura del catálogo | 61,6 % |
+| Casos evaluados | 7.190 |
+| Diversidad intra-lista@5 | 0,780 |
+
+
+Estos valores describen el desempeño del modelo sobre el test final y se conservan como referencia descriptiva. Para la regla de alerta del monitoreo se utilizará el Hit Rate@5 medio de validación cruzada temporal (9,4 %), según lo detallado en el punto e. Para asegurar la comparabilidad entre evaluaciones, se deberán documentar el modo de evaluación, la cantidad de recomendaciones, la construcción de los casos y el catálogo utilizado como denominador de cobertura.
+
+#### b. Controles propuestos
+
+| Dimensión | Control | Propósito |
+|---|---|---|
+| Acierto | Hit Rate@5 y NDCG@5 | Detectar si disminuyen los aciertos o empeora su posición. |
+| Alcance | Cobertura del catálogo | Identificar concentración en pocos productos. |
+| Variedad | Diversidad intra-lista@5 (1 − similitud promedio de co-compra entre las 5 recomendaciones). | Detectar si las recomendaciones se vuelven redundantes, con grupos de productos que casi siempre se compran juntos. |
+| Calidad de datos | Campos necesarios completos, precios válidos y códigos compatibles con el modelo | Detectar problemas del catálogo. |
+| Funcionamiento de la aplicación | Recomendaciones dentro del presupuesto, sin duplicados y con explicación | Verificar las condiciones del producto. |
+| Casos sin resultados | Frecuencia de consultas sin sugerencias y uso del respaldo de popularidad | Detectar dificultades para atender determinadas consultas. |
+
+La cobertura y la diversidad se analizarán junto con las métricas de acierto: una mayor variedad de productos, por sí sola, no demuestra mejores recomendaciones.
+
+#### c. Frecuencia y datos de evaluación
+
+El script `src/models/monitoreo.py`, implementado en el PR #17, realiza una simulación mensual de monitoreo con los datos históricos disponibles.
+
+Se simula que el modelo entra en producción el 19/08/2011: se entrena una sola vez con el período de desarrollo y se evalúa sobre las compras posteriores, agrupadas por mes y sin dividir facturas. El modelo permanece fijo durante la evaluación, sin reentrenarse entre períodos.
+
+Como el proyecto utiliza un dataset histórico cerrado, esta ejecución demuestra el funcionamiento del proceso de monitoreo, pero no constituye una evaluación con transacciones nuevas. Repetirla sobre los mismos datos permite comprobar la reproducibilidad, sin aportar evidencia independiente de desempeño futuro.
+
+En una implementación con transacciones nuevas, se propone mantener una revisión mensual, considerando el volumen de casos y la incertidumbre de las métricas para interpretar los resultados.
+
+#### d. Registro y trazabilidad
+
+El script implementado en el PR #17 registra cada período mensual en MLflow con los tags `etapa="monitoreo"` y `tipo="simulacion"`.
+
+Cada corrida incluye:
+
+- Versión del código, identificada mediante el commit de Git.
+- Fuente de los datos, fecha de corte del entrenamiento y mes evaluado.
+- Parámetros del modelo, semilla y cantidad de recomendaciones.
+- Cantidad de casos evaluados y facturas excluidas de la evaluación.
+- Hit Rate@5, NDCG@5 y cobertura del catálogo.
+- Hit Rate@5 del baseline sobre los mismos casos.
+- Porcentaje de productos nuevos y de facturas evaluables.
+- Límite superior del intervalo de confianza del 95 % del Hit Rate@5.
+- Referencia de validación utilizada y estado de la alerta.
+
+La configuración del monitoreo utiliza el modo ancla. La versión del código permite consultar los criterios de construcción de casos y cálculo de las métricas utilizados en cada ejecución.
+
+Las pruebas del resultado final de la aplicación, como el cumplimiento del presupuesto, la ausencia de duplicados y las explicaciones de las recomendaciones, se documentarán por separado de las métricas del modelo.
+
+#### e. Criterios de revisión y acciones
+
+Una caída en Hit Rate@5 o NDCG@5 motivará una revisión del período evaluado, el volumen de casos, la calidad de los datos y los cambios en el catálogo.
+
+También se analizarán reducciones de cobertura, concentración de recomendaciones y mayor frecuencia de consultas sin resultados.
+
+Como referencia inicial de alerta se utilizará el Hit Rate@5 medio de item-item en validación cruzada temporal (9,4 %, modo ancla). Se marcará un período cuando el límite superior del intervalo de confianza del 95 % de su Hit Rate@5 quede por debajo de esa referencia, según el cálculo implementado en `src/models/monitoreo.py`.
+
+Esta señal motivará una revisión de los datos, el volumen de casos y los cambios en el catálogo. Se utilizará como criterio inicial de revisión, sujeto a seguimiento, y no implicará un reentrenamiento automático.
+
+Los incumplimientos de reglas del producto, como superar el presupuesto o recomendar códigos inexistentes en el catálogo, se tratarán como errores de funcionamiento.
+
+Ante un problema se propone:
+
+1. Verificar los datos y la integración.
+2. Analizar si el cambio se concentra en determinadas categorías o consultas.
+3. Determinar si corresponde corregir datos, filtros o modelo.
+4. Si se propone reentrenar, comparar la nueva versión con la vigente mediante validación temporal antes de reemplazarla.
+
+Los resultados de monitoreo no se utilizarán para ajustar repetidamente el modelo y seguir presentando ese mismo período como una evaluación independiente.
+
+#### f. Responsabilidades propuestas
+
+| Responsable | Aporte |
+|---|---|
+| Franco — Validación de modelos | Definir el protocolo, revisar la comparabilidad de las métricas, interpretar los resultados y documentar conclusiones y limitaciones. |
+| Ezequiel — Modelado | Acordar e implementar las métricas necesarias y participar en el análisis del comportamiento del modelo. |
+| Mauricio — Pipeline y monitoreo | Implementar la ejecución reproducible y el registro de las corridas en MLflow. |
+
+
 ## 6. Demo en Streamlit
 
 La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usuario como primer paso para encontrar un regalo.
