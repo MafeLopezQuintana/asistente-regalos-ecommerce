@@ -8,7 +8,7 @@ Este informe resume los hallazgos del análisis exploratorio y qué decisiones i
 
 - [1. Resumen ejecutivo](#1-resumen-ejecutivo)
 - [2. Qué implica para el asistente](#2-qué-implica-para-el-asistente)
-- [3. Decisiones pendientes del Sprint 2](#3-decisiones-pendientes-del-sprint-2)
+- [3. Decisiones tomadas en el Sprint 2](#3-decisiones-tomadas-en-el-sprint-2)
 - [4. Evidencia: cuándo se compra](#4-evidencia-cuándo-se-compra)
 - [5. Evidencia: quién compra y qué se compra](#5-evidencia-quién-compra-y-qué-se-compra)
 - [6. Datos, limitaciones y fuentes](#6-datos-limitaciones-y-fuentes)
@@ -27,32 +27,32 @@ Una tienda online de regalos que factura unos £9,5 M por año, con un ingreso e
 
 ## 2. Qué implica para el asistente
 
-La tabla separa lo que muestran los datos, lo que el equipo propone hacer con eso y lo que todavía falta comprobar.
+La tabla separa lo que muestran los datos, lo que el equipo propuso a partir de eso y cómo quedó resuelto en el asistente.
 
-| Lo que muestran los datos | Lo que proponemos | Qué falta validar |
+| Lo que muestran los datos | Lo que propusimos | Cómo quedó en el asistente |
 | --- | --- | --- |
-| Noviembre concentra la venta y la categoría navideña crece desde septiembre | Que lo navideño gane peso en las recomendaciones a partir de septiembre | Si ponderar por época mejora las recomendaciones en la evaluación |
-| Los pares más comprados juntos son variantes de una misma línea | Sugerir otras variantes del producto elegido y usarlas para armar combos | Cuánta variedad necesita un combo para no repetir el mismo producto en otro color |
+| Noviembre concentra la venta y la categoría navideña crece desde septiembre | Que lo navideño gane peso en las recomendaciones a partir de septiembre | No se pondera por fecha: lo navideño entra cuando el usuario elige la ocasión «Navidad / Fiestas», que suma el interés Fiestas y celebraciones |
+| Los pares más comprados juntos son variantes de una misma línea | Sugerir otras variantes del producto elegido y usarlas para armar combos | Se hizo al revés: la app no sugiere variantes del producto elegido ni junta variantes en un combo, para que las ideas no se repitan |
 | El líder cambia según se mida por unidades, ingresos o presencia en facturas | Medir la popularidad por presencia en facturas, la medida que eligió el equipo | Ya comprobado en el EDA: con esa medida, sacar las facturas bulk no cambia el top 15 |
-| El 5% de los clientes identificados compra el 53,5% de las unidades | Entrenar con todas las compras, pero recomendar solo productos que compraron varios clientes minoristas distintos | Es una hipótesis de diseño: falta elegir el umbral y medir su efecto en las recomendaciones |
-| "Variedad / Sorpresa" agrupa el 26,6% de los productos y genera el 26,0% del ingreso | Refinar esa categoría antes de usarla para filtrar por intereses | Cuántos productos se pueden reasignar a una categoría con tema |
-| El 75% del catálogo cuesta £4,25 o menos | Armar combos de varios productos dentro del presupuesto | Cuántos productos y combos entran en presupuestos de £20, £50 y £100 |
+| El 5% de los clientes identificados compra el 53,5% de las unidades | Entrenar con todas las compras, pero recomendar solo productos que compraron varios clientes minoristas distintos | Se descartó el filtro: entrenar sin mayoristas no mejora el acierto (Hit Rate@5 de 10,6% contra 10,5%, `reports/decision_mayoristas.csv`) |
+| "Variedad / Sorpresa" agrupa el 26,6% de los productos y genera el 26,0% del ingreso | Refinar esa categoría antes de usarla para filtrar por intereses | Los intereses no salen de las categorías: cada uno tiene sus palabras clave (`src/data/catalogo_app.py`) y lo que no coincide va a «¡Sorprendeme!» |
+| El 75% del catálogo cuesta £4,25 o menos | Armar combos de varios productos dentro del presupuesto | Combos de 3 productos dentro de rangos de £0–2, £2–5, £5–15, £15–30 y más de £30 |
 
-El filtro de clientes minoristas parece tener un costo bajo: si se exige que al menos 10 minoristas distintos hayan comprado el producto, queda afuera el 23% del catálogo, pero solo el 1% de las ventas.
+El filtro de clientes minoristas parece tener un costo bajo: si se exige que al menos 10 minoristas distintos hayan comprado el producto, queda afuera el 23% del catálogo, pero solo el 1% de las ventas. Al final no se aplicó, porque no mejoró las recomendaciones (sección 3).
 
 <p align="center"><img src="reports/figures/informe_02_filtro_minoristas.png" alt="Exigir 10 minoristas deja afuera el 23% del catálogo y solo el 1% de las ventas" width="85%"></p>
 <p align="center"><sub>Fuente: notebook 03, sección B.8.3 · 4.725 productos.</sub></p>
 
-## 3. Decisiones pendientes del Sprint 2
+## 3. Decisiones tomadas en el Sprint 2
 
-Cuatro decisiones condicionan lo que recomienda el asistente. Cada una tiene un criterio para tomarla y un resultado esperado.
+Las cuatro decisiones que quedaron abiertas al cerrar el EDA, y cómo se resolvieron.
 
-| Decisión | Frente | Cómo se decide | Resultado esperado |
-| --- | --- | --- | --- |
-| Umbral de clientes minoristas por producto | Modelado | Comparar umbrales de 1, 5, 10, 20 y 50 minoristas: productos disponibles, ventas cubiertas y Hit Rate@5 | Un umbral que saque productos de nicho mayorista sin perder cobertura del catálogo |
-| Precio mínimo para recomendar | Modelado | Revisar los productos de precio casi nulo que pasan el filtro (por ejemplo, PADS TO MATCH ALL CUSHIONS, a £0,001) | Un piso de precio por debajo del cual un producto no se ofrece como regalo |
-| Precios anómalos | Datos | Revisar las 754 líneas (0,08% del total) con precio diez veces mayor al habitual y sin cliente, que parecen ajustes administrativos | Excluirlas o conservarlas, con el criterio documentado y un test |
-| Refinar "Variedad / Sorpresa" y medir presupuestos | Categorías | Reagrupar sus productos y contar cuántos productos y combos entran en £20, £50 y £100 | Menos productos sin tema y una lista de intereses usable en el cuestionario |
+| Decisión | Qué se decidió | Dónde está |
+| --- | --- | --- |
+| Umbral de clientes minoristas por producto | No se filtra por minoristas: entrenar sin mayoristas no mejora el acierto, así que el modelo usa todas las compras | README, sección 4 (Resultados) · `reports/decision_mayoristas.csv` |
+| Precio mínimo para recomendar | £0,50: por debajo de ese precio un producto no se ofrece como regalo | `PRECIO_MINIMO_REGALO` en `src/models/asistente.py` |
+| Precios anómalos | Se conservan las 754 líneas: el catálogo usa el precio mediano de cada producto, que no se mueve por unos pocos valores extremos | `src/data/clean.py` (precio típico = mediana) |
+| Refinar "Variedad / Sorpresa" | En lugar de refinar los clusters, los intereses del cuestionario se asignan por palabras clave | README, sección 2 · `src/data/catalogo_app.py` |
 
 ## 4. Evidencia: cuándo se compra
 
@@ -97,7 +97,7 @@ Los datos de clientes se refieren a los **5.850 clientes identificados**; casi u
 <p align="center"><img src="reports/figures/informe_06_alto_volumen.png" alt="El 5% de los clientes compra el 53,5% de las unidades" width="85%"></p>
 <p align="center"><sub>Fuente: notebook 03, sección B.7 · 5.850 clientes identificados.</sub></p>
 
-Si el modelo aprende sin cuidado, puede recomendar lo que este grupo compra en volumen, que no necesariamente es lo que elige alguien que busca un regalo. Por eso la propuesta de filtrar por clientes minoristas, que todavía hay que validar (sección 3).
+Si el modelo aprende sin cuidado, puede recomendar lo que este grupo compra en volumen, que no necesariamente es lo que elige alguien que busca un regalo. Por eso se evaluó filtrar por clientes minoristas; al final no hizo falta, porque entrenar sin ellos no mejora las recomendaciones (sección 3).
 
 ### Qué se compra
 
@@ -122,7 +122,7 @@ El dato económico es el que justifica priorizarla: una de cada cuatro libras sa
 <p align="center"><img src="reports/figures/informe_08_compras_conjuntas.png" alt="Los pares más comprados juntos son variantes del mismo producto" width="85%"></p>
 <p align="center"><sub>Fuente: notebook 03, sección B.10 · facturas de 2 a 15 productos distintos; clasificación de los pares por nombre del producto.</sub></p>
 
-Esta es la señal más directa para el recomendador: quien elige un producto suele llevarse otra versión de la misma línea. Ofrecer esas variantes antes que productos de otras categorías es una primera regla simple, respaldada por los datos, que el modelo item-item ya captura.
+Esta es la señal más directa para el recomendador: quien elige un producto suele llevarse otra versión de la misma línea. El modelo item-item captura esa relación, pero la app no muestra variantes como ideas distintas, para que las sugerencias no se repitan.
 
 ## 6. Datos, limitaciones y fuentes
 
