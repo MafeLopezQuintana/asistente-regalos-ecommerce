@@ -1,3 +1,4 @@
+[![CI](https://github.com/MafeLopezQuintana/asistente-regalos-ecommerce/actions/workflows/ci.yml/badge.svg)](https://github.com/MafeLopezQuintana/asistente-regalos-ecommerce/actions/workflows/ci.yml)
 ![Recomendador de regalos: ¿Qué le regalo?](portada-regalos.png)
 
 # Asistente de regalos para e-commerce
@@ -56,16 +57,34 @@ Genera `data/processed/online_retail_rfm.parquet` y `data/processed/online_retai
 python -m src.features.build_features
 ```
 
-   **Generar el catálogo de la app** (necesita el paso anterior):
+**Generar el catálogo de la app** (necesita el paso anterior):
 
 ```bash
-   python -m src.data.catalogo_app
+python -m src.data.catalogo_app
 ```
 
 **Entrenar y evaluar los modelos:** abrir `notebooks/04_modelos.ipynb` y ejecutar todas las celdas (necesita `data/processed/online_retail_modelo.parquet`). Las corridas quedan registradas en MLflow; para verlas, desde la raíz del repo:
 
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+**Correr el monitoreo** (simulación mes a mes, necesita `data/processed/online_retail_modelo.parquet`; las corridas quedan en MLflow con `etapa="monitoreo"`):
+
+```bash
+python -m src.models.monitoreo
+```
+
+**Generar el modelo final de la app** (necesita `data/processed/online_retail_modelo.parquet`; entrena el item-item con todos los datos y genera `models/modelo_final.pkl`):
+
+```bash
+python -m src.models.asistente
+```
+
+**Registrar el modelo final en MLflow** (después del paso anterior; guarda `models/modelo_final.pkl` como artefacto, con sus parámetros, el período de datos, las métricas de referencia y la versión del código, con `etapa="modelo_final"`):
+
+```bash
+python -m src.models.registrar_modelo
 ```
 
 **Correr los tests:**
@@ -336,7 +355,38 @@ Test: agosto a diciembre de 2011 (7.190 casos), un período que ningún modelo v
 
 Cobertura = productos distintos que el modelo recomendó alguna vez, sobre los 4.456 productos que existen en el período de desarrollo (no sobre los 4.725 del dataset completo).
 
+**Diversidad intra-lista@5** (1 − similitud promedio entre los pares de las 5 recomendaciones, medida para los tres modelos con la misma regla: la co-compra del item-item entrenado con el desarrollo):
+
+| Modelo | Hit Rate@5 | Diversidad@5 |
+|---|---|---|
+| **Item-item** | **8,4%** | 0,780 |
+| SVD | 7,0% | 0,805 |
+| Popularidad | 1,8% | 0,822 |
+
+Como era esperable, el item-item es el menos diverso, porque la referencia es la misma información que usa para recomendar. Pero la diferencia es chica: acierta 4,6 veces más que el baseline perdiendo solo 0,04 de diversidad. La ganancia en acierto no viene de recomendar todo parecido. En la app la diversidad es algo mayor, porque `buscar_ideas_regalo` además saltea las variantes del producto de referencia (`reports/diversidad_test.csv`, notebook 04).
+
+**Mayoristas:** entrenar sin ellos no mejora las recomendaciones para compras no mayoristas: Hit Rate@5 de 10,6% contra 10,5% entrenando con todos, sobre 4.115 casos (una diferencia muy por debajo del margen de error, que es de ±0,9 puntos). Con la popularidad, sacarlos incluso empeora (2,9% contra 3,2%). Por eso el modelo final se entrena con todos los datos. La comparación se hizo dentro del desarrollo, para no usar el test (`reports/decision_mayoristas.csv`, notebook 04).
+
 ![Comparación final de modelos](reports/figures/04_comparacion_final.png)
+
+### Modelo final y funciones de la app
+
+Elegido el modelo, `src/models/asistente.py` reentrena el item-item (`min_facturas=5`, tope de 200 productos por factura) con **todos los datos** (la evaluación ya se hizo sobre el corte temporal) y lo congela en `models/modelo_final.pkl`. El archivo no guarda el objeto entero sino lo que usa la app: los **20 productos que más se compran con cada producto** (con su similitud y en cuántos pedidos se compraron juntos), el **ranking de popularidad** y los parámetros y métricas de referencia. Pesa unos 4 MB y la app lo lee sin depender de las clases de `train.py`.
+
+Las dos funciones reciben las respuestas del cuestionario tal como las guarda la app (`resumen_preferencias`):
+
+- **`buscar_ideas_regalo(resumen, catalogo, modelo_final, k=5)`**: hasta 5 regalos. Primero los que más se compran con el producto de referencia (fuente `co-compra`, motivo *"Se compra junto con … (en N pedidos)"*); si no hay referencia o no alcanzan, los más vendidos que cumplen los filtros (fuente `popularidad`). No sugiere variantes (el mismo producto en otro color o tamaño) de la referencia ni de otra idea ya elegida.
+- **`armar_combos(resumen, catalogo, modelo_final, n_combos=3)`**: hasta 3 combos de 3 productos que se compran juntos, cuyo total entra en el rango de presupuesto. Cada combo arranca de un producto distinto (la referencia y después las ideas sugeridas) y suma de a uno el que más se compra con los ya elegidos. Los combos no comparten productos ni juntan variantes del mismo producto (descripciones con la mitad o más de las palabras en común, como un mismo portavelas en dos colores).
+
+Ambas cruzan con `models/catalogo_app.parquet`, así que los productos excluidos del catálogo nunca aparecen.
+
+Supuestos de negocio:
+- **Precio mínimo de £0,50:** por debajo hay precios unitarios de productos que se venden en packs (lápices a £0,04).
+- **Ocasión:** el dataset no la registra. "Navidad / Fiestas" suma el interés *Fiestas y celebraciones* a los elegidos; las demás ocasiones no filtran.
+- **¡Sorprendeme!** no filtra por interés.
+- **Combos y rango de presupuesto:** si no se llega a 3 combos dentro del rango (por ejemplo, £15 con productos de £2), se completa con los más cercanos, desde la mitad del mínimo y nunca por encima del máximo; la app los marca como "por debajo del mínimo".
+
+**Tests:** `tests/test_asistente.py` (27) y `tests/test_diversidad.py` (7).
 
 ## 5. Justificación del modelo y plan de validación
 
@@ -490,9 +540,11 @@ Los resultados de monitoreo no se utilizarán para ajustar repetidamente el mode
 
 ## 6. Demo en Streamlit
 
-La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usuario como primer paso para encontrar un regalo.
+**¿Qué le regalo?** permite registrar preferencias y descubrir regalos individuales y combos dentro del presupuesto, con sugerencias basadas en el catálogo y en compras históricas.
 
 🎁 **App pública:** [Abrir ¿Qué le regalo?](https://quele-regalo.streamlit.app)
+
+📖 **[Manual de usuario](docs/Manual_Usuario_Que_Regalo.pdf)**
 
 ### Funcionalidades disponibles
 
@@ -502,33 +554,41 @@ La interfaz de **¿Qué le regalo?** permite registrar las preferencias del usua
   - De £5 a £15.
   - De £15 a £30.
   - Más de £30.
-- Selección de uno o varios intereses, o la opción «¡Sorprendeme!».
+- Selección de uno o varios intereses, o solo «¡Sorprendeme!».
 - Elección de la ocasión y del formato: regalo individual, combo o ambas opciones.
-- Registro de si el usuario quiere elegir un producto de referencia.
-- Resumen de las preferencias al enviar el formulario.
-- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
-- Vista previa de la tarjeta y conservación del resumen mientras se personaliza.
-
-Los precios se expresan en **libras esterlinas (£)**, de acuerdo con el catálogo de origen.
-
-### Actualización pendiente de integración
-
-Se desarrolló y probó manualmente en Streamlit local un selector de productos reales del catálogo. El cambio está presentado en un Pull Request desde la rama `streamlit-demo`.
-
-Incluye:
-
-- Búsqueda y selección de un producto de referencia.
+- Búsqueda y selección opcional de un producto de referencia del catálogo.
 - Visualización de su nombre, precio y código en el resumen.
-- Validaciones para evitar contradicciones entre la respuesta del usuario y el producto seleccionado.
+- Validaciones para evitar respuestas contradictorias.
+- Resumen de las preferencias al enviar el formulario.
+- Hasta cinco ideas de regalos individuales, con precio, interés y motivo de recomendación.
+- Hasta tres combos, con sus productos, motivos y precio total.
+- Avisos cuando no se encuentran opciones, con sugerencias para ajustar la búsqueda.
+- Tarjeta opcional con destinatario, dedicatoria de hasta 300 caracteres y remitente.
+- Vista previa de la tarjeta y conservación de las preferencias y los resultados mientras se personaliza.
 
-### Próximo paso
+### Cómo usarla
 
-Conectar la interfaz con el modelo de recomendación para mostrar productos y combos dentro del presupuesto total.
+1. Elegí el presupuesto total.
+2. Completá los intereses, la ocasión y el formato del regalo.
+3. Si ya viste un producto que podría gustarle, seleccionalo como referencia.
+4. Tocá «Ver mis preferencias» y bajá hasta «Ideas para sorprender».
+5. Explorá los regalos y combos, y agregá una tarjeta si querés.
 
-**Actualmente, la app registra preferencias; todavía no genera recomendaciones.**
+Si cambiás tus preferencias, volvé a tocar «Ver mis preferencias» para actualizar los resultados.
+
+### Cómo se generan las sugerencias
+
+El presupuesto y los intereses filtran los productos del catálogo. «¡Sorprendeme!» permite explorar sin filtrar por interés. Con un producto de referencia, se priorizan sus complementos según el modelo item-item; si no hay referencia o no alcanzan los candidatos, se completa con los productos más populares que cumplen los filtros.
+
+Los combos combinan relaciones de co-compra y popularidad, evitando repetir productos entre combos y juntar variantes del mismo producto. La ocasión «Navidad / Fiestas» suma el interés Fiestas y celebraciones a los elegidos; las demás ocasiones no modifican el filtro.
+
+### Precios y alcance
+
+Los precios se expresan en **libras esterlinas (£)** y corresponden al catálogo histórico de origen. En los combos, el presupuesto máximo se aplica al conjunto completo; pueden mostrarse alternativas por debajo del mínimo del rango, con un aviso.
+
+Es una demo académica: no consulta stock ni precios actuales, no procesa compras, pagos o envíos y no envía la tarjeta personalizada.
 
 **Código de la interfaz:** [`app.py`](app.py)
-
 
 ## 7. Pipeline reproducible y monitoreo
 
@@ -545,7 +605,7 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada Pull Request contra `m
 | Instalar dependencias | `pip install -r requirements.txt` |
 | Correr los tests | `pytest tests/ -v` |
 
-El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 76 tests:
+El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Hoy corren 120 tests:
 
 | Archivo | Tests | Qué cubren |
 |---|---|---|
@@ -553,6 +613,10 @@ El resultado (verde o rojo) aparece en el PR antes de que alguien lo apruebe. Ho
 | `tests/test_build_features.py` | 8 | Clustering de productos y asignación de las categorías |
 | `tests/test_catalogo_app.py` | 22 | Reglas de intereses, exclusiones y que el catálogo de la app no tenga productos sin precio o categoría |
 | `tests/test_modelos.py` | 32 | Corte temporal y folds, métricas, los tres modelos y el registro en MLflow |
+| `tests/test_monitoreo.py` | 9 | Separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza de Wilson, alerta de referencia, facturas excluidas y registro en MLflow |
+| `tests/test_registrar_modelo.py` | 1 | Registro del modelo final en MLflow (etapa, parámetros, métricas y el `.pkl` como artefacto) con una base temporal |
+| `tests/test_asistente.py` | 27 | Modelo final (vecinos, pedidos en común, guardado), sugerencias y combos con presupuesto, intereses, ocasión, variantes y motivo |
+| `tests/test_diversidad.py` | 7 | Diversidad intra-lista (valores extremos e intermedios, productos fuera de la referencia) y que `evaluar()` solo la sume si se pide |
 
 Decisiones tomadas:
 
@@ -569,13 +633,33 @@ Decisiones tomadas:
 - **Dónde se guarda:** `mlflow.db` (base SQLite) y `mlartifacts/`, en la raíz del repo sin importar desde qué carpeta se ejecute: la ruta se calcula a partir de la ubicación del archivo, así un notebook y un script escriben en la misma base.
 - **Modelos guardados con `joblib`:** nuestros modelos no son estimadores de scikit-learn, y así se puede guardar cualquier objeto.
 - **No se suben al repo** (están en `.gitignore`): las corridas se regeneran ejecutando el notebook.
-- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) y `monitoreo`, reservada para la reevaluación del modelo (7.3).
+- **Etapas, con el tag `etapa`:** `validacion` y `test_final` (detalle en la sección 4, MLflow) , `monitoreo` (una corrida por mes de la simulación de monitoreo, 7.3) y `modelo_final` (la versión del modelo que usa la app, con el `.pkl` como artefacto).
 
 Para verlas: `mlflow ui --backend-store-uri sqlite:///mlflow.db`, abrir http://127.0.0.1:5000 y elegir la vista **Model training**.
 
 ### 7.3 Monitoreo
 
-Próximo paso (Sprint 2): un script que reevalúe el modelo elegido sobre períodos nuevos con la misma función `evaluar()` de `src/models/evaluate.py` y registre cada resultado en MLflow con `etapa="monitoreo"`. La sección 5 muestra por qué hace falta: el Hit Rate@5 de item-item baja de 9,4% en validación a 8,4% en test, así que el rendimiento no está garantizado en períodos futuros.
+`src/models/monitoreo.py` simula que el modelo elegido (item-item, `min_facturas=5`, tope de 200 productos por factura) entra en producción el día del corte temporal (19/08/2011): se entrena una sola vez con el período de desarrollo y se reevalúa mes a mes, **sin reentrenar**, con la misma `evaluar()` de `src/models/evaluate.py`. Como el dataset es histórico, es una **simulación de monitoreo**: cada mes queda en MLflow con `etapa="monitoreo"` y `tipo="simulacion"`, junto con la versión del código, la fuente de los datos y las facturas excluidas. El protocolo para interpretar los resultados está en la sección 5 (Plan de monitoreo).
+
+```bash
+python -m src.models.monitoreo
+```
+
+Por cada mes se registra Hit Rate@5, NDCG@5, cobertura, el Hit Rate@5 del baseline sobre los mismos casos y el **% de productos nuevos** (productos vendidos en el mes que el modelo nunca vio al entrenar).
+
+**Alerta de referencia:** el mes se marca si su Hit Rate@5 queda por debajo de la referencia de validación (9,4%) incluso tomando el límite superior de su intervalo de confianza de Wilson del 95%. Así, un mes con pocos casos no dispara la alerta solo por azar. Es una referencia para revisar el período, no un umbral definitivo.
+
+| Mes | Casos | Hit Rate@5 | Baseline | IC 95% superior | Productos nuevos | Alerta |
+|---|---|---|---|---|---|---|
+| 2011-08 (desde el 19) | 471 | 9,1% | 1,5% | 12,1% | 0,6% | No |
+| 2011-09 | 1.692 | 10,4% | 2,2% | 11,9% | 4,6% | No |
+| 2011-10 | 1.784 | 7,1% | 1,9% | 8,4% | 8,2% | **Sí** |
+| 2011-11 | 2.500 | 8,0% | 2,0% | 9,1% | 9,0% | **Sí** |
+| 2011-12 (hasta el 9) | 743 | 7,7% | 1,9% | 9,8% | 9,4% | No |
+
+En octubre y noviembre el Hit Rate cae por debajo de lo esperado y, en esos mismos meses, crece la proporción de productos que el modelo no conoce. Coincide con la temporada previa a Navidad, cuando cambia el catálogo. No demuestra la causa, pero es la señal que se usaría para decidir reentrenar. En diciembre el valor también es bajo, pero con pocos casos el intervalo no permite confirmarlo. En todos los meses el modelo se mantiene unas 4 veces por encima del baseline.
+
+**Tests:** `tests/test_monitoreo.py` (9): separación por mes sin partir facturas, % de productos nuevos, intervalo de confianza de Wilson (incluido el caso de 0 aciertos), alerta de referencia, facturas excluidas y registro en MLflow con una base temporal.
 
 
 ## Limitaciones
@@ -584,8 +668,9 @@ Este proyecto es un prototipo académico desarrollado para el Proyecto Final de 
 
 - **Datos históricos:** utiliza transacciones de Online Retail II de 2009 a 2011, con foco en Reino Unido. No representa un catálogo comercial actualizado.
 - **Precios de referencia:** los importes están expresados en libras esterlinas (£). No se consultan precios actuales, stock, costos de envío ni conversiones de moneda.
-- **Alcance de la app:** registra preferencias, muestra su resumen y permite personalizar una tarjeta. Todavía no genera recomendaciones ni combos.
-- **Preferencias y modelo:** registrar intereses, ocasión y presupuesto no implica que el modelo ya utilice esas respuestas.
+- **Alcance de la app:** genera ideas de regalos individuales y combos, muestra sus precios y motivos de recomendación y permite personalizar una tarjeta. La cantidad de resultados depende de los productos que cumplen los filtros.
+- **Preferencias y modelo:** el presupuesto y los intereses se aplican como filtros; el producto de referencia guía la búsqueda de complementos por co-compra, con popularidad como respaldo. La ocasión solo modifica el filtro para «Navidad / Fiestas», que suma Fiestas y celebraciones cuando se filtra por intereses. Las demás ocasiones se registran, pero no cambian las sugerencias. El formato determina si se muestran regalos, combos o ambas opciones.
+- **Presupuesto de combos:** el total nunca supera el máximo elegido. Si no hay suficientes opciones dentro del rango, pueden mostrarse combos por debajo del mínimo, desde la mitad de ese mínimo, con un aviso. El rango «Más de £30» tiene un máximo interno de £1.000.
 - **Interpretación de las compras:** que dos productos se compren juntos no garantiza que sean adecuados como regalo ni que reflejen los gustos del destinatario.
 - **Evaluación offline:** las métricas se calculan con transacciones históricas. No miden satisfacción ni demuestran un aumento real de ventas.
 - **Sin operación comercial:** la app no procesa compras, pagos ni envíos, y tampoco envía la tarjeta personalizada.
