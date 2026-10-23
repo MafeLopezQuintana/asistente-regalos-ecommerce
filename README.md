@@ -107,53 +107,61 @@ La versión publicada está en https://quele-regalo.streamlit.app (ver [6. Demo 
 asistente-regalos-ecommerce/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                  # CI: corre los tests en cada PR
+│       └── ci.yml                       # Integración continua
 ├── .streamlit/
-│   └── config.toml                 # Configuración visual de la demo
+│   └── config.toml                      # Configuración de Streamlit
 ├── assets/
-│   └── portada.png                 # Imagen de la demo
-├── data/                           # Local, no se sube (ver .gitignore)
-│   ├── raw/                        # online_retail_II.xlsx (original)
-│   └── processed/                  # Parquets limpios y catálogo
-├── models/                         # catalogo_app.parquet, intereses.csv, modelo_final.pkl
+│   └── portada.png                      # Imagen de la aplicación
+├── docs/
+│   ├── Manual_Usuario_Que_Regalo.docx    # Manual de usuario editable
+│   └── Manual_Usuario_Que_Regalo.pdf     # Manual de usuario en PDF
+├── models/
+│   ├── catalogo_app.parquet              # Catálogo utilizado por la aplicación
+│   ├── intereses.csv                     # Datos de intereses
+│   └── modelo_final.pkl                  # Modelo final serializado
 ├── notebooks/
-│   ├── img/                        # Gráficos del análisis de categorías
-│   ├── 01_calidad_datos.ipynb      # Limpieza y calidad de datos
-│   ├── 02b_categorias.ipynb        # Categorías de producto (TF-IDF + K-Means)
-│   ├── 03_eda.ipynb                # Análisis exploratorio
-│   └── 04_modelos.ipynb            # Modelos: validación y comparación final
+│   ├── img/                             # Imágenes del análisis de categorías
+│   ├── 01_calidad_datos.ipynb            # Calidad y limpieza de datos
+│   ├── 02b_categorias.ipynb              # Construcción y análisis de categorías
+│   ├── 03_eda.ipynb                      # Análisis exploratorio
+│   └── 04_modelos.ipynb                  # Validación y comparación de modelos
 ├── reports/
-│   ├── figures/                    # Gráficos del EDA (01, 02) y de modelos (04)
-│   └── comparacion_modelos.csv     # Tabla final de modelos
+│   ├── figures/                         # Gráficos de análisis y modelos
+│   ├── comparacion_modelos.csv           # Resultados de comparación
+│   ├── decision_mayoristas.csv           # Reporte sobre mayoristas
+│   └── diversidad_test.csv               # Resultados de diversidad
 ├── src/
 │   ├── data/
-│   │   ├── clean.py                # Limpieza → datasets en Parquet
-│   │   └── catalogo_app.py         # Catálogo de la app con intereses
+│   │   ├── catalogo_app.py               # Preparación del catálogo de la app
+│   │   └── clean.py                      # Limpieza de datos
 │   ├── features/
-│   │   └── build_features.py       # Categorías de producto
+│   │   ├── __init__.py
+│   │   └── build_features.py             # Construcción de características
 │   ├── models/
-│   │   ├── train.py                # Matriz y modelos (Popularidad, ItemItem, SVD)
-│   │   ├── evaluate.py             # Corte temporal, métricas y comparación
-│   │   ├── asistente.py            # Modelo final, sugerencias y combos para la app
-│   │   ├── monitoreo.py            # Monitoreo mensual del modelo (simulación)
-│   │   └── registrar_modelo.py     # Registro del modelo final en MLflow
+│   │   ├── __init__.py
+│   │   ├── asistente.py                  # Lógica del asistente de recomendaciones
+│   │   ├── evaluate.py                   # Evaluación de modelos
+│   │   ├── monitoreo.py                  # Monitoreo del recomendador
+│   │   ├── registrar_modelo.py           # Registro del modelo
+│   │   └── train.py                      # Entrenamiento de modelos
 │   └── utils/
-│       └── mlflow_utils.py         # Registro común de corridas en MLflow
+│       └── mlflow_utils.py               # Utilidades de MLflow
 ├── tests/
-│   ├── test_clean.py
+│   ├── test_asistente.py
 │   ├── test_build_features.py
 │   ├── test_catalogo_app.py
-│   ├── test_modelos.py
-│   ├── test_asistente.py
+│   ├── test_clean.py
 │   ├── test_diversidad.py
+│   ├── test_modelos.py
 │   ├── test_monitoreo.py
 │   └── test_registrar_modelo.py
-├── app.py                          # Demo en Streamlit
-├── portada-regalos.png             # Portada del README
-├── pytest.ini                      # Configuración de los tests
-├── requirements.txt                # Dependencias con versiones fijas
-├── README_EDA.md                   # Informe ejecutivo del EDA
-└── README.md
+├── .gitignore                           # Archivos y carpetas excluidos de Git
+├── app.py                               # Aplicación en Streamlit
+├── portada-regalos.png                   # Portada del README
+├── pytest.ini                           # Configuración de pytest
+├── requirements.txt                     # Dependencias del proyecto
+├── README_EDA.md                         # Informe del análisis exploratorio
+└── README.md                            # Documentación principal
 ```
 
 ## 1. Calidad de datos
