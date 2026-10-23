@@ -658,7 +658,7 @@ En octubre y noviembre el Hit Rate cae por debajo de lo esperado y, en esos mism
 
 Este proyecto es un prototipo académico desarrollado para el Proyecto Final de Henry.
 
-- **Datos históricos:** utiliza transacciones de Online Retail II de 2009 a 2011, con foco en Reino Unido. No representa un catálogo comercial actualizado.
+- **Datos históricos:**utiliza transacciones de Online Retail II de 2009 a 2011, de clientes de 43 países. Reino Unido concentra el 85,3% de las ventas; el modelo se entrena con todos los países y no se filtra por país.No representa un catálogo comercial actualizado.
 - **Precios de referencia:** los importes están expresados en libras esterlinas (£). No se consultan precios actuales, stock, costos de envío ni conversiones de moneda.
 - **Alcance de la app:** genera ideas de regalos individuales y combos, muestra sus precios y motivos de recomendación y permite personalizar una tarjeta. La cantidad de resultados depende de los productos que cumplen los filtros.
 - **Preferencias y modelo:** el presupuesto y los intereses se aplican como filtros; el producto de referencia guía la búsqueda de complementos por co-compra, con popularidad como respaldo. La ocasión solo modifica el filtro para «Navidad / Fiestas», que suma Fiestas y celebraciones cuando se filtra por intereses. Las demás ocasiones se registran, pero no cambian las sugerencias. El formato determina si se muestran regalos, combos o ambas opciones.
