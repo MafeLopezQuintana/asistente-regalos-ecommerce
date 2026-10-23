@@ -421,7 +421,7 @@ Estos valores describen el desempeño del modelo sobre el test final y se conser
 |---|---|---|
 | Acierto | Hit Rate@5 y NDCG@5 | Detectar si disminuyen los aciertos o empeora su posición. |
 | Alcance | Cobertura del catálogo | Identificar concentración en pocos productos. |
-| Variedad | Diversidad intra-lista@5 (1 − similitud promedio de co-compra entre las 5 recomendaciones). |
+| Variedad | Diversidad intra-lista@5 (1 − similitud promedio de co-compra entre las 5 recomendaciones). | Detectar si las recomendaciones se vuelven redundantes, con grupos de productos que casi siempre se compran juntos. |
 | Calidad de datos | Campos necesarios completos, precios válidos y códigos compatibles con el modelo | Detectar problemas del catálogo. |
 | Funcionamiento de la aplicación | Recomendaciones dentro del presupuesto, sin duplicados y con explicación | Verificar las condiciones del producto. |
 | Casos sin resultados | Frecuencia de consultas sin sugerencias y uso del respaldo de popularidad | Detectar dificultades para atender determinadas consultas. |
