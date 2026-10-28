@@ -546,6 +546,10 @@ Los resultados de monitoreo no se utilizarán para ajustar repetidamente el mode
 
 📖 **[Manual de usuario](docs/Manual_Usuario_Que_Regalo.pdf)**
 
+<p align="center">
+  <img src="assets/teaser_que_le_regalo.gif" alt="Teaser de ¿Qué le regalo?: del cuestionario a las ideas y combos" width="800">
+</p>
+
 ### Funcionalidades disponibles
 
 - Selección del presupuesto total para un regalo o combo:
