@@ -242,7 +242,7 @@ Se excluyen 29 productos que no corresponden a un asistente de regalos: vales de
 
 ## 3. EDA y visualizaciones
 
-Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un informe ejecutivo de los hallazgos y lo que implican para el asistente en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/`; el dashboard de Power BI queda para la presentación final.
+Análisis exploratorio completo en [`notebooks/03_eda.ipynb`](notebooks/03_eda.ipynb), con un informe ejecutivo de los hallazgos y lo que implican para el asistente en [`README_EDA.md`](README_EDA.md). Los gráficos están en `reports/figures/` y el dashboard de Power BI, más abajo.
 
 Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.402 facturas. Cifras en libras (£); ingreso = cantidad × precio unitario.
 
@@ -264,6 +264,46 @@ Datos: Online Retail II (diciembre 2009 a diciembre 2011), 991.648 filas y 39.40
 
 3. **Productos baratos y pedidos de varios productos:** el producto típico cuesta **£2,10** (3 de cada 4 cuestan £4,25 o menos) y un pedido típico lleva **15 productos distintos** → el asistente trabaja con presupuestos bajos por producto y puede sugerir varios productos (combos) dentro de un mismo presupuesto.
 
+### Dashboard de Power BI
+
+Dashboard interactivo con la identidad visual de la app "¿Qué le regalo?". Resume lo que cuentan los datos de compras y cómo se comportan los modelos de recomendación.
+
+![Página de inicio del dashboard](reports/figures/dashboard/00_inicio.png)
+
+| Página | Qué muestra |
+|---|---|
+| 1 · Resumen de ventas | Ingresos, facturas, productos y ticket mediano; ventas por mes y Top 10 de productos |
+| 2 · Cuándo y dónde se compra | Ventas por día de la semana y por hora, y países que más compran |
+| 3 · Clientes | Concentración de ingresos (curva de Pareto) y comparación entre clientes de alto volumen y minoristas |
+| 4 · Catálogo por interés | Productos y precio de las 28 categorías, y estacionalidad de cada una |
+| 5 · Modelos | Hit Rate@5, NDCG@5 y cobertura de Item-item, SVD y el baseline de popularidad |
+
+![Resumen de ventas](reports/figures/dashboard/01_resumen.png)
+
+![Modelos de recomendación](reports/figures/dashboard/05_modelos.png)
+
+**Archivos**
+
+- Dashboard: [`reports/powerbi/QueLeRegalo_Dashboard.pbix`](reports/powerbi/QueLeRegalo_Dashboard.pbix). Se abre con Power BI Desktop (Windows).
+- Versión en PDF, para verlo sin Power BI: [`reports/powerbi/QueLeRegalo_Dashboard.pdf`](reports/powerbi/QueLeRegalo_Dashboard.pdf).
+- Tema de colores y fuentes: [`reports/powerbi/Tema_PowerBI_QueLeRegaloV2.json`](reports/powerbi/Tema_PowerBI_QueLeRegaloV2.json).
+- Script que genera las tablas del dashboard: [`reports/powerbi/exportar_datos.py`](reports/powerbi/exportar_datos.py).
+
+**Cómo regenerar los datos**
+
+Con los Parquet generados por el ETL y el catálogo categorizado en `data/processed/`:
+
+```
+python reports/powerbi/exportar_datos.py
+```
+
+Crea `reports/powerbi/datos_dashboard.xlsx`, que Power BI usa como origen de datos. Ese Excel es una salida generada y no se sube al repositorio.
+
+**Notas**
+
+- Las métricas de los modelos (Item-item, SVD y popularidad) se cargaron a mano desde la evaluación del equipo de modelos. Si cambian, hay que actualizar la hoja `modelos` del script.
+- Los gráficos mensuales excluyen diciembre de 2011, que solo tiene 9 días de datos.
+- Los datos son compras de 2009 a 2011 y las métricas de los modelos son offline: no miden satisfacción ni ventas.
 
 ## 4. Modelos
 
