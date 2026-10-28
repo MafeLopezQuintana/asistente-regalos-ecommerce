@@ -1,0 +1,149 @@
+{
+  "name": "Que le regalo - Presente Analytics",
+  "dataColors": [
+    "#0739D9",
+    "#FFE600",
+    "#7F9CFF",
+    "#082575",
+    "#FF8808",
+    "#0047FF",
+    "#B8C7FF",
+    "#FFD000"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#12205C",
+  "tableAccent": "#0739D9",
+  "good": "#1B9E5A",
+  "neutral": "#FFE600",
+  "bad": "#D63B3B",
+  "maximum": "#0739D9",
+  "center": "#B8C7FF",
+  "minimum": "#EDF2FF",
+  "textClasses": {
+    "title": {
+      "fontFace": "Trebuchet MS",
+      "fontSize": 16,
+      "color": "#0739D9",
+      "fontWeight": "bold"
+    },
+    "header": {
+      "fontFace": "Trebuchet MS",
+      "fontSize": 12,
+      "color": "#0739D9",
+      "fontWeight": "bold"
+    },
+    "label": {
+      "fontFace": "Segoe UI",
+      "fontSize": 10,
+      "color": "#12205C"
+    },
+    "callout": {
+      "fontFace": "Trebuchet MS",
+      "fontSize": 28,
+      "color": "#0739D9",
+      "fontWeight": "bold"
+    }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": {
+              "solid": {
+                "color": "#EDF2FF"
+              }
+            },
+            "transparency": 0
+          }
+        ]
+      }
+    },
+    "*": {
+      "*": {
+        "title": [
+          {
+            "show": true,
+            "fontColor": {
+              "solid": {
+                "color": "#0739D9"
+              }
+            },
+            "fontFamily": "Trebuchet MS",
+            "fontSize": 14,
+            "bold": true
+          }
+        ],
+        "background": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#FFFFFF"
+              }
+            },
+            "transparency": 0
+          }
+        ],
+        "border": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#CCD8FF"
+              }
+            },
+            "radius": 12
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#99B0FF"
+              }
+            },
+            "position": "Outer",
+            "preset": "BottomRight"
+          }
+        ],
+        "categoryAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#12205C"
+              }
+            },
+            "fontFamily": "Segoe UI"
+          }
+        ],
+        "valueAxis": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#12205C"
+              }
+            },
+            "fontFamily": "Segoe UI",
+            "gridlineColor": {
+              "solid": {
+                "color": "#DCE4FF"
+              }
+            }
+          }
+        ],
+        "legend": [
+          {
+            "labelColor": {
+              "solid": {
+                "color": "#12205C"
+              }
+            },
+            "fontFamily": "Segoe UI"
+          }
+        ]
+      }
+    }
+  }
+}

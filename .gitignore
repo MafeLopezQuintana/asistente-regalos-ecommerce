@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .env
 reports/powerbi/*.xlsx
+mlartifacts/
+.venv/
+mlflow.db
