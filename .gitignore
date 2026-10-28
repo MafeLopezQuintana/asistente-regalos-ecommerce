@@ -4,6 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 *.pyc
 .env
+reports/powerbi/*.xlsx
 mlartifacts/
 .venv/
 mlflow.db
