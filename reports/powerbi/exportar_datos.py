@@ -159,6 +159,49 @@ def tabla_kpis(df, rfm, ventas_mes, prod):
     return pd.DataFrame([fila])
 
 
+SEGMENTOS_VISIBLES = {"mayorista": ("Alto volumen (top 5 %)", 1), "minorista": ("Minorista", 2), "sin_cliente": ("Sin cliente", 3)}
+
+
+def tabla_facturas(df):
+    """Una fila por factura (39.402 en los datos reales). Es la tabla base de los filtros del dashboard:
+    permite filtrar por año, mes, día, hora, país y tipo de cliente, y sumar sin doble conteo.
+    Cada factura se ubica en el día y la hora de su primera línea."""
+    g = (df.sort_values("invoice_date").groupby("invoice_no")
+           .agg(fecha_hora=("invoice_date", "min"), pais=("country_std", "first"), segmento=("segmento", "first"),
+                ingresos=("ventas", "sum"), unidades=("quantity", "sum"), productos=("stock_code", "nunique"))
+           .reset_index())
+    f = g["fecha_hora"]
+    g["fecha"] = f.dt.normalize()
+    g["mes"] = f.dt.to_period("M").dt.to_timestamp()
+    g["anio"] = f.dt.year
+    g["dia_semana"] = f.dt.dayofweek.map(lambda i: DIAS[i])
+    g["orden_dia"] = f.dt.dayofweek + 1
+    g["hora"] = f.dt.hour
+    ult = df["invoice_date"].max()
+    incompleto = ult.day < ult.days_in_month - 2
+    g["mes_completo"] = np.where((g["mes"] == ult.to_period("M").to_timestamp()) & incompleto, "No", "Sí")
+    g["temporada"] = np.where(g["mes"].dt.month.isin([9, 10, 11]), "Sep–Nov", "Resto del año")
+    return g[["invoice_no", "fecha", "mes", "anio", "dia_semana", "orden_dia", "hora", "pais", "segmento",
+              "ingresos", "unidades", "productos", "mes_completo", "temporada"]]
+
+
+def tabla_ventas_producto(df, facturas):
+    """Ventas por producto, año y tipo de cliente (para el Top 10 y los filtros de la página 1)."""
+    base = facturas[["invoice_no", "anio", "segmento"]]
+    m = df[["invoice_no", "stock_code", "quantity", "ventas"]].merge(base, on="invoice_no", how="left")
+    return (m.groupby(["stock_code", "anio", "segmento"])
+              .agg(unidades=("quantity", "sum"), ingresos=("ventas", "sum"), facturas=("invoice_no", "nunique"))
+              .reset_index())
+
+
+def tablas_dimension(facturas):
+    """Tablas chicas que comparten los filtros de año y de tipo de cliente entre las tablas de hechos."""
+    dim_anio = pd.DataFrame({"anio": sorted(facturas["anio"].unique())})
+    dim_segmento = pd.DataFrame([{"segmento": k, "segmento_visible": v[0], "orden": v[1]}
+                                 for k, v in SEGMENTOS_VISIBLES.items()])
+    return dim_anio, dim_segmento
+
+
 def tabla_modelos():
     """Métricas de los modelos, tomadas de la Demo 1 (diapositivas 18 y 19).
     Fuente original: reports/comparacion_modelos.csv, rama modelos-demo1. Si el equipo
@@ -182,6 +225,8 @@ def main():
     df, rfm, cat = cargar()
     ventas_mes = tabla_ventas_mes(df)
     prod = tabla_productos(df, cat)
+    facturas = tabla_facturas(df)
+    dim_anio, dim_segmento = tablas_dimension(facturas)
     hojas = {
         "kpis": tabla_kpis(df, rfm, ventas_mes, prod),
         "ventas_mes": ventas_mes,
@@ -194,6 +239,11 @@ def main():
         "segmentos": tabla_segmentos(rfm),
         "pareto_clientes": tabla_pareto(rfm),
         "modelos": tabla_modelos(),
+        # tablas para los filtros interactivos
+        "facturas": facturas,
+        "ventas_producto": tabla_ventas_producto(df, facturas),
+        "dim_anio": dim_anio,
+        "dim_segmento": dim_segmento,
     }
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(SALIDA, engine="openpyxl") as w:
